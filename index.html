@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Детские Кроватки.рф - Бот-консультант</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            animation: {
+              'bounce-slow': 'bounce 3s infinite',
+              'fade-in': 'fadeIn 0.2s ease-out',
+              'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(-10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              bounceIn: {
+                '0%': { opacity: '0', transform: 'translate(-50%, -20px)' },
+                '60%': { opacity: '1', transform: 'translate(-50%, 10px)' },
+                '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* For custom scrollbars */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #5288c1;
+        border-radius: 3px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #4a7aa8;
+      }
+      /* Dark mode scrollbar track adjustment handled via class logic where possible, or global generic */
+      
+      /* Prevent pull-to-refresh on mobile */
+      body {
+        overscroll-behavior-y: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@18.2.0",
+    "react/": "https://aistudiocdn.com/react@18.2.0/",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@18.2.0/client",
+    "react-dom/": "https://aistudiocdn.com/react-dom@18.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-100 dark:bg-gray-800 transition-colors duration-300">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "name": "Детские Кроватки.рф - Бот-консультант",
+  "description": "A web application that simulates a Telegram bot interface for browsing products from the 'Детские Кроватки.рф' store. It uses AI to generate product descriptions and create a beautiful, interactive shopping experience for children's furniture.",
+  "requestFramePermissions": []
+}
