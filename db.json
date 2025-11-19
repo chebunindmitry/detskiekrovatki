@@ -1,104 +1,5 @@
 {
-  "_generatedAt": 1763555534716,
-  "products": [
-    {
-      "id": 1763553816657,
-      "categoryId": 1,
-      "name": "Хилтон Графит Матовый",
-      "price": 34000,
-      "specialPrice": 29000,
-      "sku": "436",
-      "stock": 10,
-      "status": true,
-      "image": "img/399812.webp",
-      "images": [
-        "img/399812.webp"
-      ],
-      "description": "",
-      "attributes": [],
-      "variantLabels": [
-        "Цвет"
-      ],
-      "variantValues": [
-        ""
-      ],
-      "variants": [],
-      "stickerIds": [],
-      "isBundle": false,
-      "bundleItems": []
-    },
-    {
-      "id": 1763546793751,
-      "categoryId": 1763546984012,
-      "name": "Детская «Хилтон» Дуб Крафт золотой, Мокко матовый",
-      "price": 67900,
-      "specialPrice": 56800,
-      "sku": "240235",
-      "stock": 10,
-      "status": true,
-      "image": "img/1014748.webp",
-      "images": [
-        "img/1014748.webp"
-      ],
-      "description": "Это тестовое описание товара",
-      "attributes": [],
-      "variantLabels": [
-        "Цвет"
-      ],
-      "variantValues": [
-        ""
-      ],
-      "variants": [],
-      "stickerIds": [],
-      "isBundle": false,
-      "bundleItems": []
-    },
-    {
-      "id": 1763546793752,
-      "categoryId": 1763546984012,
-      "name": "Детская «Порто» Яблоня Беллуно, Графит софт98700",
-      "price": 98543,
-      "specialPrice": 56890,
-      "sku": "43246",
-      "stock": 10,
-      "status": true,
-      "image": "img/996621.webp",
-      "images": [
-        "img/996621.webp"
-      ],
-      "description": "Второе тестовое описание",
-      "attributes": [],
-      "variantLabels": [
-        "Цвет"
-      ],
-      "variantValues": [
-        ""
-      ],
-      "variants": [],
-      "stickerIds": [],
-      "isBundle": false,
-      "bundleItems": []
-    }
-  ],
-  "categories": [
-    {
-      "id": 1,
-      "name": "Детские кроватки",
-      "showImage": true,
-      "image": "https://picsum.photos/seed/cat1/300/200",
-      "sortOrder": 1,
-      "status": true
-    },
-    {
-      "id": 1763546984012,
-      "name": "Комлекты мебели",
-      "parentId": null,
-      "image": "",
-      "showImage": false,
-      "sortOrder": 2,
-      "status": true
-    }
-  ],
+  "_generatedAt": 1715600000000,
   "settings": {
     "name": "Детские Кроватки.рф",
     "description": "Уютная и безопасная мебель для вашего малыша. Поможем выбрать лучшее!",
@@ -109,6 +10,10 @@
     "realPhotosLabel": "Фото от наших покупателей",
     "realPhotos": [],
     "showProductsFromSubcategories": true
+  },
+  "stats": {
+    "favoritesCount": 0,
+    "consultationsCount": 0
   },
   "stickers": [
     {
@@ -136,8 +41,319 @@
       "textColor": "#ffffff"
     }
   ],
-  "stats": {
-    "favoritesCount": 0,
-    "consultationsCount": 0
-  }
+  "categories": [
+    {
+      "id": 1,
+      "name": "Детские кроватки",
+      "showImage": true,
+      "image": "https://picsum.photos/seed/cat1/300/200",
+      "sortOrder": 1,
+      "status": true
+    },
+    {
+      "id": 2,
+      "name": "Комоды и пеленальные столики",
+      "showImage": true,
+      "image": "https://picsum.photos/seed/cat2/300/200",
+      "sortOrder": 2,
+      "status": true
+    },
+    {
+      "id": 3,
+      "name": "Детские матрасы",
+      "showImage": false,
+      "sortOrder": 3,
+      "status": true
+    },
+    {
+      "id": 4,
+      "name": "Постельное белье",
+      "showImage": true,
+      "image": "https://picsum.photos/seed/cat4/300/200",
+      "sortOrder": 4,
+      "status": true
+    }
+  ],
+  "products": [
+    {
+      "id": 101,
+      "categoryId": 1,
+      "name": "КроваткаСервер \"Bambini Classic\" (Белая)",
+      "price": 6490,
+      "specialPrice": 5990,
+      "image": "https://picsum.photos/seed/crib1/600/600",
+      "images": [
+        "https://picsum.photos/seed/crib1/600/600",
+        "https://picsum.photos/seed/crib1-2/600/600",
+        "https://picsum.photos/seed/crib1-3/600/600"
+      ],
+      "sku": "BAM-001-W",
+      "stock": 12,
+      "status": true,
+      "attributes": [
+        {
+          "name": "Материал",
+          "text": "Береза"
+        },
+        {
+          "name": "Тип качания",
+          "text": "Колесо-качалка"
+        }
+      ],
+      "variantLabels": [
+        "Цвет"
+      ],
+      "variantValues": [
+        "Белый"
+      ],
+      "variants": [
+        {
+          "productId": 101,
+          "values": [
+            "Белый"
+          ]
+        },
+        {
+          "productId": 105,
+          "values": [
+            "Слоновая кость"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "categoryId": 1,
+      "name": "Кроватка \"Bambini Classic\" (Слоновая кость)",
+      "price": 6490,
+      "image": "https://picsum.photos/seed/crib1-ivory/600/600",
+      "images": [
+        "https://picsum.photos/seed/crib1-ivory/600/600"
+      ],
+      "sku": "BAM-001-I",
+      "stock": 8,
+      "status": true,
+      "attributes": [
+        {
+          "name": "Материал",
+          "text": "Береза"
+        },
+        {
+          "name": "Тип качания",
+          "text": "Колесо-качалка"
+        }
+      ],
+      "variantLabels": [
+        "Цвет"
+      ],
+      "variantValues": [
+        "Слоновая кость"
+      ],
+      "variants": [
+        {
+          "productId": 101,
+          "values": [
+            "Белый"
+          ]
+        },
+        {
+          "productId": 105,
+          "values": [
+            "Слоновая кость"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "categoryId": 1,
+      "name": "Кроватка-трансформер \"Evolvo 7в1\"",
+      "price": 11990,
+      "image": "https://picsum.photos/seed/crib2/600/600",
+      "images": [
+        "https://picsum.photos/seed/crib2/600/600",
+        "https://picsum.photos/seed/crib2-detail/600/600"
+      ],
+      "sku": "EVO-7IN1",
+      "stock": 5,
+      "status": true,
+      "attributes": [
+        {
+          "name": "Форма",
+          "text": "Круглая/Овальная"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "categoryId": 1,
+      "name": "Кроватка \"Mimi с маятником\"",
+      "price": 8990,
+      "image": "https://picsum.photos/seed/crib3/600/600",
+      "images": [
+        "https://picsum.photos/seed/crib3/600/600"
+      ],
+      "sku": "MIMI-PEN",
+      "stock": 0,
+      "status": true,
+      "options": [
+        {
+          "name": "Механизм",
+          "values": [
+            "Поперечный",
+            "Продольный"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 201,
+      "categoryId": 2,
+      "name": "Пеленальный комод \"Comfort\"",
+      "price": 7200,
+      "image": "https://picsum.photos/seed/dresser1/600/600",
+      "images": [
+        "https://picsum.photos/seed/dresser1/600/600"
+      ],
+      "sku": "COMF-DR",
+      "stock": 8,
+      "status": true,
+      "options": [
+        {
+          "name": "Ящики",
+          "values": [
+            "3",
+            "4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "categoryId": 2,
+      "name": "Комод \"Teddy Bear\"",
+      "price": 8500,
+      "image": "https://picsum.photos/seed/dresser2/600/600",
+      "images": [
+        "https://picsum.photos/seed/dresser2/600/600"
+      ],
+      "sku": "TED-BEAR",
+      "stock": 3,
+      "status": true
+    },
+    {
+      "id": 203,
+      "categoryId": 2,
+      "name": "Пеленальный столик \"Simple\"",
+      "price": 3900,
+      "image": "https://picsum.photos/seed/dresser3/600/600",
+      "images": [
+        "https://picsum.photos/seed/dresser3/600/600"
+      ],
+      "sku": "SIM-TAB",
+      "stock": 15,
+      "status": false
+    },
+    {
+      "id": 301,
+      "categoryId": 3,
+      "name": "Матрас \"Baby Dream\" 120x60",
+      "price": 3500,
+      "image": "https://picsum.photos/seed/mattress1/600/600",
+      "images": [
+        "https://picsum.photos/seed/mattress1/600/600"
+      ],
+      "sku": "MAT-120",
+      "stock": 20,
+      "status": true,
+      "variantLabels": [
+        "Размер"
+      ],
+      "variantValues": [
+        "120x60"
+      ],
+      "variants": [
+        {
+          "productId": 301,
+          "values": [
+            "120x60"
+          ]
+        },
+        {
+          "productId": 302,
+          "values": [
+            "125x65"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 302,
+      "categoryId": 3,
+      "name": "Матрас \"Baby Dream\" 125x65",
+      "price": 3800,
+      "image": "https://picsum.photos/seed/mattress2/600/600",
+      "images": [
+        "https://picsum.photos/seed/mattress2/600/600"
+      ],
+      "sku": "MAT-125",
+      "stock": 7,
+      "status": true,
+      "variantLabels": [
+        "Размер"
+      ],
+      "variantValues": [
+        "125x65"
+      ],
+      "variants": [
+        {
+          "productId": 301,
+          "values": [
+            "120x60"
+          ]
+        },
+        {
+          "productId": 302,
+          "values": [
+            "125x65"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 401,
+      "categoryId": 4,
+      "name": "Комплект белья \"Звездная ночь\"",
+      "price": 4200,
+      "image": "https://picsum.photos/seed/bedding1/600/600",
+      "images": [
+        "https://picsum.photos/seed/bedding1/600/600"
+      ],
+      "sku": "SET-STAR",
+      "stock": 10,
+      "status": true,
+      "options": [
+        {
+          "name": "Расцветка",
+          "values": [
+            "Голубой",
+            "Розовый"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 402,
+      "categoryId": 4,
+      "name": "Бортики в кроватку \"Облака\"",
+      "price": 3100,
+      "image": "https://picsum.photos/seed/bedding2/600/600",
+      "images": [
+        "https://picsum.photos/seed/bedding2/600/600"
+      ],
+      "sku": "BORT-CLD",
+      "stock": 2,
+      "status": true
+    }
+  ]
 }
