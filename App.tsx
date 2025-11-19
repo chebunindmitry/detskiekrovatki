@@ -40,6 +40,9 @@ interface StoreStats {
 }
 
 const App: React.FC = () => {
+  // Telegram Integration
+  const [isTelegram, setIsTelegram] = useState(false);
+
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('theme_preference');
@@ -71,7 +74,6 @@ const App: React.FC = () => {
           const saved = localStorage.getItem('store_settings');
           if (saved) {
               const parsed = JSON.parse(saved);
-              // Merge with defaults to ensure new fields exist if loading old data
               return { ...defaults, ...parsed };
           }
       } catch (e) {
@@ -109,8 +111,7 @@ const App: React.FC = () => {
       }
   });
 
-  // Data State - Initialize from LocalStorage (Internal Database)
-  // Fallback to mockProducts if DB is empty to prevent data loss appearance
+  // Data State
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const savedProducts = localStorage.getItem('db_products');
@@ -127,7 +128,6 @@ const App: React.FC = () => {
     }
   });
 
-  // Categories State
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
         const savedCategories = localStorage.getItem('db_categories');
@@ -164,6 +164,28 @@ const App: React.FC = () => {
   // --- Effects ---
 
   useEffect(() => {
+    // Telegram Web App Initialization
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+        tg.ready();
+        
+        // Check if running inside Telegram
+        if (tg.platform !== 'unknown') {
+            setIsTelegram(true);
+            tg.expand(); // Expand to full height
+            
+            // Sync Theme with Telegram
+            if (tg.colorScheme) {
+                setIsDarkMode(tg.colorScheme === 'dark');
+            }
+            
+            // Optional: Listen to theme changes
+            tg.onEvent('themeChanged', () => {
+                setIsDarkMode(tg.colorScheme === 'dark');
+            });
+        }
+    }
+
     // Check for persistent admin session
     const storedPhone = localStorage.getItem('admin_phone');
     if (storedPhone === '89203718545') {
@@ -206,10 +228,7 @@ const App: React.FC = () => {
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setCurrentScreen(tab);
-    // Reset selection when switching main tabs
     if (tab === Screen.CATALOG) {
-      // Do not reset category immediately to allow user to stay in context?
-      // Or reset to Root? Usually reset to root for bottom nav "Catalog" click.
       if (currentScreen !== Screen.CATALOG) {
           setSelectedCategory(null);
           setSearchQuery('');
@@ -221,7 +240,6 @@ const App: React.FC = () => {
     setSelectedProduct(product);
     setCurrentScreen(Screen.PRODUCT_DETAILS);
     
-    // Optional: Lazy load AI description if missing
     if (!product.description || product.description.length < 20) {
          try {
              const [enriched] = await enrichProductsWithDescriptions([product], "Подробное описание карточки товара");
@@ -265,12 +283,18 @@ const App: React.FC = () => {
       setStats(prev => ({ ...prev, consultationsCount: prev.consultationsCount + 1 }));
       setCurrentScreen(Screen.CONFIRMATION);
       setConsultationForm({ name: '', phone: '', question: '' });
+      
+      // If in Telegram, we could use tg.sendData() here to send form data back to bot
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg && isTelegram) {
+          // Optional: Close app or send data
+          // tg.sendData(JSON.stringify(consultationForm));
+      }
     }, 500);
   };
 
   // --- Product CRUD ---
   const updateProduct = (updatedProduct: Product) => {
-      // Auto-sync variants logic
       if (updatedProduct.variants && updatedProduct.variants.length > 0) {
           const relatedIds = updatedProduct.variants.map(v => v.productId);
           if (!relatedIds.includes(updatedProduct.id)) relatedIds.push(updatedProduct.id);
@@ -406,8 +430,7 @@ const App: React.FC = () => {
     setCurrentScreen(Screen.START);
   };
 
-  // Filter logic: Category + Search + Status + SORTING
-  // Helper to find all subcategory IDs for a given category ID
+  // Filter logic
   const getCategoryIdsIncludingChildren = (rootId: number): number[] => {
       const result = [rootId];
       const children = categories.filter(c => c.parentId === rootId);
@@ -417,13 +440,10 @@ const App: React.FC = () => {
       return result;
   };
 
-  // Helper for sorting prices/discounts
   const getEffectivePrice = (p: Product) => p.specialPrice ?? p.price;
   const getDiscountAmount = (p: Product) => p.specialPrice ? (p.price - p.specialPrice) : 0;
 
-  // FILTER LOGIC FOR CATALOG VIEW
   const getFilteredProducts = () => {
-    // If searching, ignore category strictness, just search everywhere
     if (searchQuery.trim().length > 0) {
         return products.filter(p => 
             (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -432,24 +452,15 @@ const App: React.FC = () => {
         );
     }
 
-    // If in root category (selectedCategory === null)
-    // User wants tile navigation, so typically we don't show products in ROOT
-    // unless they are specifically assigned to root (unlikely) or we want "All products".
-    // But per request "Categories as tiles", we focus on categories in root.
     if (selectedCategory === null) {
-        // You might want to show "Featured" or nothing here, allowing user to pick a category.
-        // Let's show nothing (or featured) to keep UI clean for categories.
         return []; 
     }
 
-    // If inside a category
     return products.filter(p => {
         if (storeSettings.showProductsFromSubcategories) {
-             // Recursive
              const allowedIds = getCategoryIdsIncludingChildren(selectedCategory);
              return allowedIds.includes(p.categoryId) && p.status;
         } else {
-             // Strict
              return p.categoryId === selectedCategory && p.status;
         }
     });
@@ -531,11 +542,6 @@ const App: React.FC = () => {
   );
 
   const renderCatalog = () => {
-    // Determine visible categories for the Tiled Navigation
-    // If searching, we hide categories.
-    // If not searching:
-    //    If selectedCategory is NULL -> Show Root Categories (parentId is null)
-    //    If selectedCategory is SET -> Show Subcategories (parentId === selectedCategory)
     const visibleCategories = searchQuery.trim().length > 0 
         ? [] 
         : categories
@@ -693,11 +699,13 @@ const App: React.FC = () => {
     );
   };
 
+  // ... (Product Details, Consultation, Confirmation, Favorites, Admin Logic remains the same)
+  // Retaining all original logic for these functions, just ensuring `renderMainContent` is called correctly below.
+
   const renderProductDetails = () => {
     if (!selectedProduct) return null;
     const isFav = favorites.includes(selectedProduct.id);
 
-    // Calculate Bundle Price & Stock Dynamically if it's a bundle
     let displayPrice = selectedProduct.price;
     let displaySpecialPrice = selectedProduct.specialPrice;
     let displayStock = selectedProduct.stock;
@@ -705,7 +713,6 @@ const App: React.FC = () => {
     if (selectedProduct.isBundle && selectedProduct.bundleItems && selectedProduct.bundleItems.length > 0) {
         let calculatedPrice = 0;
         let minStock = 999999;
-        
         selectedProduct.bundleItems.forEach(itemId => {
             const item = products.find(p => p.id === itemId);
             if (item) {
@@ -713,43 +720,21 @@ const App: React.FC = () => {
                 if (item.stock < minStock) minStock = item.stock;
             }
         });
-        
         displayPrice = calculatedPrice;
-        displaySpecialPrice = undefined; // Bundles typically show the sum, special pricing would need separate logic
+        displaySpecialPrice = undefined;
         displayStock = minStock === 999999 ? 0 : minStock;
     }
-
-    // --- Variant Switching Logic ---
     
     const handleVariantSwitch = (labelIndex: number, selectedValue: string) => {
         if (!selectedProduct.variants) return;
-
-        // Get current values of the product
         const currentValues = selectedProduct.variantValues || [];
-        
-        // Construct target vector: Copy current values, but update the one user clicked
         const targetValues = [...currentValues];
         targetValues[labelIndex] = selectedValue;
-
-        // Find product that matches BOTH (or ALL) criteria if possible
-        // e.g. if I am on [Red, XL] and click "Blue", I want [Blue, XL].
-        
-        let bestMatch = selectedProduct.variants.find(v => {
-            // Check strict equality for all dimensions
-            return v.values.every((val, idx) => val === targetValues[idx]);
-        });
-
-        // If no exact match (e.g. [Blue, XL] doesn't exist), try to find ANY product with the selected value for this dimension
-        // e.g. Just find any [Blue, *]
-        if (!bestMatch) {
-            bestMatch = selectedProduct.variants.find(v => v.values[labelIndex] === selectedValue);
-        }
-
+        let bestMatch = selectedProduct.variants.find(v => v.values.every((val, idx) => val === targetValues[idx]));
+        if (!bestMatch) bestMatch = selectedProduct.variants.find(v => v.values[labelIndex] === selectedValue);
         if (bestMatch) {
             const targetProduct = products.find(p => p.id === bestMatch?.productId);
-            if (targetProduct) {
-                handleProductClick(targetProduct);
-            }
+            if (targetProduct) handleProductClick(targetProduct);
         }
     };
 
@@ -762,7 +747,6 @@ const App: React.FC = () => {
              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
 
-        {/* Gallery */}
         <div className="w-full bg-gray-200 dark:bg-gray-800 relative">
              <ProductGallery images={selectedProduct.images && selectedProduct.images.length > 0 ? selectedProduct.images : [selectedProduct.image]} alt={selectedProduct.name} />
         </div>
@@ -845,20 +829,13 @@ const App: React.FC = () => {
                 </div>
             )}
             
-            {/* --- VARIANT SELECTOR --- */}
-            {/* Only show variants if NOT a bundle (though bundles could theoretically have variants, keeping it simple) */}
             {!selectedProduct.isBundle && selectedProduct.variants && selectedProduct.variants.length > 0 && selectedProduct.variantLabels && (
                 <div className="mb-6 space-y-4">
                     {selectedProduct.variantLabels.map((label, labelIdx) => {
-                        // Extract unique available values for this specific dimension
-                        // We rely on the `variants` list which contains ALL related products (including self usually)
                         const availableValues = Array.from(new Set(
                             selectedProduct.variants?.map(v => v.values[labelIdx]).filter(Boolean)
                         ));
-                        
-                        // Current selected value for this dimension
                         const currentValue = selectedProduct.variantValues?.[labelIdx];
-
                         if (availableValues.length === 0) return null;
 
                         return (
@@ -909,7 +886,7 @@ const App: React.FC = () => {
                 </p>
             </div>
 
-            {/* --- REAL PHOTOS GALLERY (GLOBAL) --- */}
+            {/* --- REAL PHOTOS GALLERY --- */}
             {storeSettings.realPhotosEnabled && storeSettings.realPhotos && storeSettings.realPhotos.length > 0 && (
                 <div className="mb-8">
                     <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-3 flex items-center">
@@ -956,7 +933,6 @@ const App: React.FC = () => {
     <div className="flex flex-col h-full bg-gray-50 dark:bg-[#0e1621] p-6 overflow-y-auto custom-scrollbar transition-colors">
        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Консультация</h2>
 
-       {/* Direct Manager Contact */}
        <div className="mb-8 bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">Нужен быстрый ответ?</p>
           <a 
@@ -1099,10 +1075,16 @@ const App: React.FC = () => {
            && currentScreen !== Screen.ADMIN_DASHBOARD;
   };
 
+  // If running in Telegram, we want full width and no border/shadow simulation
+  // If running in Browser (default), we keep the mobile simulation frame
+  const containerClasses = isTelegram 
+     ? "relative flex flex-col w-full h-screen bg-gray-50 dark:bg-[#0e1621] overflow-hidden transition-colors duration-300"
+     : "relative flex flex-col w-full h-[100vh] md:h-[95vh] md:w-[400px] bg-gray-50 dark:bg-[#0e1621] md:rounded-3xl shadow-2xl overflow-hidden md:border border-gray-300 dark:border-gray-700 transition-colors duration-300";
+
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-        <div className="flex justify-center items-center min-h-screen bg-gray-200 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
-        <div className="relative flex flex-col w-full h-[100vh] md:h-[95vh] md:w-[400px] bg-gray-50 dark:bg-[#0e1621] md:rounded-3xl shadow-2xl overflow-hidden md:border border-gray-300 dark:border-gray-700 transition-colors duration-300">
+        <div className={`flex justify-center items-center min-h-screen ${isTelegram ? 'bg-gray-50 dark:bg-[#0e1621]' : 'bg-gray-200 dark:bg-gray-900'} font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300`}>
+        <div className={containerClasses}>
             
             <main className="flex-1 overflow-hidden relative">
             {renderMainContent()}
