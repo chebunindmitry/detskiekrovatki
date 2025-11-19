@@ -64,7 +64,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     onLogout, 
     isAdmin 
 }) => {
-  const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [activeSection, setActiveSection] = useState<'products' | 'categories' | 'settings' | 'interface' | 'statistics'>('products');
   
   // Filter State
@@ -87,8 +88,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   
   // Store Settings Local State
   const [localSettings, setLocalSettings] = useState(storeSettings);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const realPhotoInputRef = useRef<HTMLInputElement>(null);
 
   // Sticker Management State
   const [newSticker, setNewSticker] = useState({ name: '', bgColor: '#3b82f6', textColor: '#ffffff' });
@@ -158,9 +157,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       status: true
   });
 
-  const ADMIN_PHONE = '89203718545';
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const catFileInputRef = useRef<HTMLInputElement>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
@@ -171,12 +167,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // --- Auth ---
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.replace(/\D/g, '').includes(ADMIN_PHONE)) {
+    
+    try {
+        // Attempt to login against a local backend if available
+        // Assuming standard OAuth2/FormData login endpoint
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('password', password);
+        
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1000); // Quick timeout to prefer local fallback if no backend
+
+        const response = await fetch('http://localhost:8000/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData,
+            signal: controller.signal
+        });
+        clearTimeout(id);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.access_token) {
+                localStorage.setItem('admin_token', data.access_token);
+                onLoginSuccess();
+                return;
+            }
+        }
+    } catch (err) {
+        // Backend not reachable or error, proceed to fallback
+        console.log("Backend login failed or not reachable");
+    }
+
+    // Fallback / Local Check (Demo Mode)
+    // The user requested a change to login/password auth system
+    if (username === 'admin' && password === 'password') {
+        showToastMessage('Вход выполнен (Локальный режим)', 'success');
         onLoginSuccess();
     } else {
-        showToastMessage('Неверный номер телефона', 'error');
+        showToastMessage('Неверный логин или пароль', 'error');
     }
   };
 
@@ -761,18 +792,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }
       setShowAddCategoryModal(false);
   };
-
-  const handleCategoryDrop = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.dataTransfer.files?.[0]) processFile(e.dataTransfer.files[0], (res) => setNewCategory(c => ({...c, image: res})));
-  };
-
-  const handleCategoryPaste = (e: React.ClipboardEvent) => {
-      if (e.clipboardData.files?.[0]) {
-          e.preventDefault();
-          processFile(e.clipboardData.files[0], (res) => setNewCategory(c => ({...c, image: res})));
-      }
-  };
   
   // --- Sticker Logic ---
   const handleAddSticker = (e: React.FormEvent) => {
@@ -802,23 +821,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       showToastMessage('Настройки успешно сохранены!');
   };
   
-  const handleLogoDrop = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.dataTransfer.files?.[0]) {
-          processFile(e.dataTransfer.files[0], (res) => setLocalSettings(s => ({...s, logoUrl: res})));
-      }
-  };
-  
-  // --- Real Photos Logic ---
-  const handleRealPhotoDrop = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.dataTransfer.files?.[0]) {
-          processFile(e.dataTransfer.files[0], (res) => {
-              setLocalSettings(s => ({...s, realPhotos: [...(s.realPhotos || []), res]}));
-          });
-      }
-  };
-
   const handleRemoveRealPhoto = (index: number) => {
       setLocalSettings(s => ({
           ...s,
@@ -909,14 +911,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                    </div>
                    <div className="flex-1">
                        <input type="text" value={localSettings.logoUrl} onChange={e => setLocalSettings({...localSettings, logoUrl: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white text-sm mb-2" placeholder="URL или путь (img/logo.png)..." />
-                       
-                       <details className="text-xs text-gray-500">
-                            <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файл (Не рекомендуется для db.json)</summary>
-                            <div onDrop={handleLogoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => logoInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#242d37] cursor-pointer hover:border-blue-500 transition-colors">
-                                <span className="text-gray-500 text-xs">Перетащите файл (Base64 - тяжело!)</span>
-                                <input type="file" ref={logoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, logoUrl: res})))} className="hidden" accept="image/*" />
-                            </div>
-                       </details>
                    </div>
               </div>
           </div>
@@ -1063,15 +1057,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-xs text-gray-500 mb-1">Загрузить фото</label>
-
-                        <details className="text-xs text-gray-500">
-                            <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файлы с устройства (Base64)</summary>
-                            <div onDrop={handleRealPhotoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => realPhotoInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#242d37] cursor-pointer hover:border-blue-500 transition-colors">
-                                <span className="text-gray-500 text-xs">Нажмите или перетащите сюда фото</span>
-                                <input type="file" ref={realPhotoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, realPhotos: [...(s.realPhotos || []), res]})))} className="hidden" accept="image/*" />
-                            </div>
-                        </details>
+                        <label className="block text-xs text-gray-500 mb-1">Ссылки на фото (img/...)</label>
+                        <div className="space-y-2">
+                            {(localSettings.realPhotos || []).concat(['']).slice(0, 5).map((photo, idx) => (
+                                <div key={idx} className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        value={photo}
+                                        placeholder={`Фото ${idx+1}`}
+                                        onChange={(e) => {
+                                            const newPhotos = [...(localSettings.realPhotos || [])];
+                                            newPhotos[idx] = e.target.value;
+                                            setLocalSettings(s => ({...s, realPhotos: newPhotos.filter(p => p)}));
+                                        }}
+                                        className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-xs"
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Grid of photos */}
@@ -1171,13 +1174,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
         <div className="bg-gray-100 dark:bg-[#17212b] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl">
             <div className="mb-6 text-center">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Вход</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Введите номер администратора</p>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Вход в систему</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Введите учетные данные администратора</p>
             </div>
-            <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="89203718545" className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-white text-center text-lg" />
-                <button type="submit" className="w-full py-3 rounded-xl font-bold bg-blue-600 text-white">Войти</button>
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Имя пользователя</label>
+                    <input 
+                        type="text" 
+                        value={username} 
+                        onChange={e => setUsername(e.target.value)} 
+                        placeholder="admin"
+                        autoCapitalize="none"
+                        className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-white" 
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1">Пароль</label>
+                    <input 
+                        type="password" 
+                        value={password} 
+                        onChange={e => setPassword(e.target.value)} 
+                        placeholder="••••••" 
+                        className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-white" 
+                    />
+                </div>
+                <button type="submit" className="w-full py-3 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 transition-colors">Войти</button>
             </form>
+            <div className="mt-4 text-center">
+                <p className="text-[10px] text-gray-400">Для локального демо: admin / password</p>
+            </div>
         </div>
       </div>
     );
@@ -1206,7 +1232,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <h3 className="text-gray-900 dark:text-white font-bold">{editingId ? 'Редактировать категорию' : 'Новая категория'}</h3>
                     <button onClick={() => setShowAddCategoryModal(false)} className="text-gray-500 dark:text-gray-400">Закрыть</button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4" onPaste={handleCategoryPaste}>
+                <div className="flex-1 overflow-y-auto p-4">
                     <form onSubmit={handleCategorySubmit} className="space-y-4">
                         <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Название</label><input required value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white" /></div>
                         <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Порядок сортировки</label><input type="number" value={newCategory.sortOrder} onChange={e => setNewCategory({...newCategory, sortOrder: parseInt(e.target.value) || 0})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white" /></div>

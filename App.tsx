@@ -191,7 +191,7 @@ const App: React.FC = () => {
             }
         } catch (e) {
             console.error(e);
-            setSysNotification({msg: 'Критическая ошибка БД', type: 'error'});
+            // setSysNotification({msg: 'Критическая ошибка БД', type: 'error'});
         }
     };
     initDB();
@@ -221,8 +221,8 @@ const App: React.FC = () => {
     }
 
     // Check for persistent admin session
-    const storedPhone = localStorage.getItem('admin_phone');
-    if (storedPhone === '89203718545') {
+    const token = localStorage.getItem('admin_token');
+    if (token) {
       setIsAdmin(true);
     }
   }, []);
@@ -445,17 +445,37 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAdminLoginSuccess = () => {
+  const handleAdminLoginSuccess = async () => {
     setIsAdmin(true);
-    localStorage.setItem('admin_phone', '89203718545');
+    // Ensure a token exists for persistence
+    if (!localStorage.getItem('admin_token')) {
+        localStorage.setItem('admin_token', 'demo_session_token');
+    }
     setCurrentScreen(Screen.ADMIN_DASHBOARD);
-    setSysNotification({msg: 'Режим администратора. База данных обновлена.', type: 'success'});
+    
+    // Fetch latest DB when admin logs in
+    try {
+        const db = await loadDatabase();
+        if (db) {
+             if (db.products) setProducts(db.products);
+             if (db.categories) setCategories(db.categories);
+             if (db.settings) setStoreSettings(db.settings);
+             if (db.stickers) setStickers(db.stickers);
+             if (db.stats) setStats(db.stats);
+             setSysNotification({msg: 'Режим администратора. База данных (sqlite3) обновлена.', type: 'success'});
+        } else {
+             setSysNotification({msg: 'Режим администратора. Ошибка обновления БД.', type: 'error'});
+        }
+    } catch (e) {
+        setSysNotification({msg: 'Ошибка соединения с БД.', type: 'error'});
+    }
+
     setTimeout(() => setSysNotification(null), 4000);
   };
 
   const handleAdminLogout = () => {
     setIsAdmin(false);
-    localStorage.removeItem('admin_phone');
+    localStorage.removeItem('admin_token');
     setCurrentScreen(Screen.START);
   };
 
