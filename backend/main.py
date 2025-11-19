@@ -1,8 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 from typing import List, Optional, Dict
 import json
+import os
+from dotenv import load_dotenv
+from pydantic import BaseModel
+
+# Загружаем переменные окружения
+load_dotenv()
+
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "password")
 
 # --- Модели базы данных (SQLite) ---
 
@@ -43,6 +53,11 @@ class Product(SQLModel, table=True):
 sqlite_file_name = "store.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url)
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
 
 
 def create_db_and_tables():
@@ -210,7 +225,7 @@ def seed_data():
 
 if __name__ == "__main__":
     create_db_and_tables()
-    seed_data()
+    # seed_data()
     import uvicorn
 
     # Запуск сервера на порту 8000
