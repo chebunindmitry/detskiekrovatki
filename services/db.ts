@@ -15,17 +15,9 @@ export const loadDatabase = async (): Promise<Database | null> => {
         // Generate a unique timestamp to bust cache
         const timestamp = new Date().getTime();
         
-        // Use relative path './db.json' to support GitHub Pages subdirectories
-        // Added 'cache: no-store' and explicit headers to force network request
-        const response = await fetch(`./db.json?ver=${timestamp}`, {
-            method: 'GET',
-            cache: 'no-store',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-            }
-        });
+        // Removed custom headers to ensure compatibility with static hosts (GitHub Pages)
+        // The query parameter ?v=timestamp is sufficient for cache busting
+        const response = await fetch(`db.json?v=${timestamp}`);
         
         if (!response.ok) {
             console.warn(`DB Fetch failed: ${response.status} ${response.statusText}`);
@@ -35,7 +27,7 @@ export const loadDatabase = async (): Promise<Database | null> => {
         const data = await response.json();
         return data;
     } catch (e) {
-        console.warn("Could not load remote database (db.json). Using local storage.", e);
+        console.warn("Could not load remote database (db.json). Using local/demo data.", e);
         return null;
     }
 };

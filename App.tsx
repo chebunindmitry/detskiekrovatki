@@ -57,6 +57,9 @@ const App: React.FC = () => {
   // Lightbox State
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
+  // Notification State
+  const [sysNotification, setSysNotification] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+
   // Store Settings State
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
       const defaults: StoreSettings = {
@@ -167,20 +170,32 @@ const App: React.FC = () => {
   // Load Remote DB on startup
   useEffect(() => {
     const initDB = async () => {
-        const remoteDB = await loadDatabase();
-        if (remoteDB) {
-            // Remote DB takes precedence over local storage
-            const dateStr = remoteDB._generatedAt ? new Date(remoteDB._generatedAt).toLocaleString() : 'Unknown Date';
-            console.log('Remote DB loaded successfully. Version:', dateStr);
-            
-            if (remoteDB.products && Array.isArray(remoteDB.products)) setProducts(remoteDB.products);
-            if (remoteDB.categories && Array.isArray(remoteDB.categories)) setCategories(remoteDB.categories);
-            if (remoteDB.settings) setStoreSettings(remoteDB.settings);
-            if (remoteDB.stickers && Array.isArray(remoteDB.stickers)) setStickers(remoteDB.stickers);
-            if (remoteDB.stats) setStats(remoteDB.stats);
-        } else {
-            console.log('Using local/mock data (db.json not found or failed)');
+        try {
+            const remoteDB = await loadDatabase();
+            if (remoteDB) {
+                // Remote DB takes precedence over local storage
+                const dateStr = remoteDB._generatedAt ? new Date(remoteDB._generatedAt).toLocaleString() : 'Unknown Date';
+                console.log('Remote DB loaded successfully. Version:', dateStr);
+                
+                if (remoteDB.products && Array.isArray(remoteDB.products)) setProducts(remoteDB.products);
+                if (remoteDB.categories && Array.isArray(remoteDB.categories)) setCategories(remoteDB.categories);
+                if (remoteDB.settings) setStoreSettings(remoteDB.settings);
+                if (remoteDB.stickers && Array.isArray(remoteDB.stickers)) setStickers(remoteDB.stickers);
+                if (remoteDB.stats) setStats(remoteDB.stats);
+
+                setSysNotification({msg: 'База данных успешно обновлена', type: 'success'});
+            } else {
+                console.log('Using local/mock data (db.json not found or failed)');
+                // Show error only if we are falling back to mock data and local storage is empty/mock
+                setSysNotification({msg: 'Не удалось загрузить db.json. Включен Демо-режим.', type: 'error'});
+            }
+        } catch (e) {
+            console.error(e);
+            setSysNotification({msg: 'Ошибка подключения к базе данных', type: 'error'});
         }
+
+        // Hide notification after 4 seconds
+        setTimeout(() => setSysNotification(null), 4000);
     };
     initDB();
   }, []);
@@ -1101,6 +1116,13 @@ const App: React.FC = () => {
         <div className={`flex justify-center items-center min-h-screen ${isTelegram ? 'bg-gray-50 dark:bg-[#0e1621]' : 'bg-gray-200 dark:bg-gray-900'} font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300`}>
         <div className={containerClasses}>
             
+            {/* System Notifications Overlay */}
+            {sysNotification && (
+                <div className={`absolute top-4 left-4 right-4 z-[100] px-4 py-3 rounded-xl shadow-lg animate-bounce-in flex items-center justify-center text-center text-sm font-bold text-white ${sysNotification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+                    {sysNotification.msg}
+                </div>
+            )}
+
             <main className="flex-1 overflow-hidden relative">
             {renderMainContent()}
             </main>
