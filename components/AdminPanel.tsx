@@ -77,6 +77,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [showImportModal, setShowImportModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
   // DnD State
@@ -937,21 +938,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* Backup Section */}
           <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Синхронизация с сайтом</h3>
-              <button 
-                type="button"
-                onClick={handleDownloadStaticDB}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl shadow mb-2 flex items-center justify-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                💾 Скачать db.json
-              </button>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
-                1. Скачайте файл. <br/>
-                2. Загрузите его в корень вашего сайта через FTP. <br/>
-                3. Все изменения станут доступны на всех устройствах.
-              </p>
-
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Резервное копирование (Локально)</h3>
               <div className="flex gap-4">
                   <button 
@@ -1206,9 +1192,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#0e1621] relative transition-colors">
+    <div className="flex flex-col h-full bg-white dark:bg-[#0e1621] relative transition-colors z-0">
         {toast && <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-2xl flex items-center animate-bounce-in ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}><span className="font-bold">{toast.message}</span></div>}
         
+        {/* SYNC MODAL */}
+        {showSyncModal && (
+            <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-[#17212b] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-700 animate-bounce-in">
+                    <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white text-center">Синхронизация (db.json)</h3>
+                    <div className="space-y-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
+                            Чтобы ваши изменения увидели все пользователи, нужно обновить файл базы данных на сервере.
+                        </p>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                            <ol className="list-decimal list-inside text-sm space-y-2 text-gray-700 dark:text-gray-200">
+                                <li>Скачайте актуальный файл <b className="text-blue-600 dark:text-blue-400">db.json</b></li>
+                                <li>Загрузите его в корень вашего сайта (GitHub или хостинг)</li>
+                                <li>Перезагрузите сайт на других устройствах</li>
+                            </ol>
+                        </div>
+                        <button onClick={handleDownloadStaticDB} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Скачать db.json
+                        </button>
+                        <button onClick={() => setShowSyncModal(false)} className="w-full py-3 text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors text-sm">
+                            Закрыть
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {showImportModal && (
             <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center">
                 <div className="bg-white dark:bg-[#17212b] w-full max-w-sm rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-2xl">
@@ -1223,7 +1237,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         )}
 
         {showAddCategoryModal && (
-            <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/90 backdrop-blur-sm flex flex-col overflow-hidden">
+            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col overflow-hidden">
                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between bg-white dark:bg-[#17212b]">
                     <h3 className="text-gray-900 dark:text-white font-bold">{editingId ? 'Редактировать категорию' : 'Новая категория'}</h3>
                     <button onClick={() => setShowAddCategoryModal(false)} className="text-gray-500 dark:text-gray-400">Закрыть</button>
@@ -1240,9 +1254,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             </select>
                         </div>
                         <div>
-                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Изображение</label>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Изображение (URL или Файл)</label>
+                             <input 
+                                type="text" 
+                                placeholder="URL картинки (рекомендуется для db.json)" 
+                                value={newCategory.image} 
+                                onChange={e => setNewCategory({...newCategory, image: e.target.value})}
+                                className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-xs mb-2"
+                             />
                              <div onDrop={handleCategoryDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => catFileInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#17212b] cursor-pointer hover:border-blue-500 transition-colors">
-                                {newCategory.image ? <img src={newCategory.image} className="h-24 mx-auto object-contain" alt="Preview" /> : <span className="text-gray-500 text-xs">Drop image here</span>}
+                                {newCategory.image ? <img src={newCategory.image} className="h-24 mx-auto object-contain" alt="Preview" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
                                 <input type="file" ref={catFileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewCategory(c => ({...c, image: res})))} className="hidden" accept="image/*" />
                              </div>
                         </div>
@@ -1258,7 +1279,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
         {/* Product Modal */}
         {showAddModal && (
-            <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/90 backdrop-blur-sm flex flex-col overflow-hidden">
+            <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col overflow-hidden">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-[#17212b]">
                     <h3 className="text-gray-900 dark:text-white font-bold text-lg">{editingId ? 'Редактировать товар' : 'Новый товар'}</h3>
                     <button onClick={() => setShowAddModal(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
@@ -1592,7 +1613,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="mb-2">
                                 <input 
                                     type="text" 
-                                    placeholder="Или вставьте ссылку на фото (например: /images/photo.jpg)" 
+                                    placeholder="URL изображения (рекомендуется для db.json)" 
                                     value={newProduct.mainImage} 
                                     onChange={e => setNewProduct({...newProduct, mainImage: e.target.value})}
                                     className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-sm"
@@ -1619,6 +1640,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin</h2>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button onClick={() => setShowSyncModal(true)} className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow flex items-center animate-pulse">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                        Сохранить на сервер
+                    </button>
                     <button onClick={onExit} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors flex items-center">
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         В магазин

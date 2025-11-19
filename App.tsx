@@ -170,12 +170,14 @@ const App: React.FC = () => {
         const remoteDB = await loadDatabase();
         if (remoteDB) {
             // Remote DB takes precedence over local storage
-            console.log('Remote DB loaded');
-            if (remoteDB.products) setProducts(remoteDB.products);
-            if (remoteDB.categories) setCategories(remoteDB.categories);
+            console.log('Remote DB loaded successfully from server');
+            if (remoteDB.products && Array.isArray(remoteDB.products)) setProducts(remoteDB.products);
+            if (remoteDB.categories && Array.isArray(remoteDB.categories)) setCategories(remoteDB.categories);
             if (remoteDB.settings) setStoreSettings(remoteDB.settings);
-            if (remoteDB.stickers) setStickers(remoteDB.stickers);
+            if (remoteDB.stickers && Array.isArray(remoteDB.stickers)) setStickers(remoteDB.stickers);
             if (remoteDB.stats) setStats(remoteDB.stats);
+        } else {
+            console.log('Using local/mock data (db.json not found or failed)');
         }
     };
     initDB();
@@ -301,13 +303,6 @@ const App: React.FC = () => {
       setStats(prev => ({ ...prev, consultationsCount: prev.consultationsCount + 1 }));
       setCurrentScreen(Screen.CONFIRMATION);
       setConsultationForm({ name: '', phone: '', question: '' });
-      
-      // If in Telegram, we could use tg.sendData() here to send form data back to bot
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg && isTelegram) {
-          // Optional: Close app or send data
-          // tg.sendData(JSON.stringify(consultationForm));
-      }
     }, 500);
   };
 

@@ -1,7 +1,7 @@
 
 import { Product, Category, Sticker } from '../types';
 
-interface Database {
+export interface Database {
     products: Product[];
     categories: Category[];
     settings?: any;
@@ -11,18 +11,23 @@ interface Database {
 
 export const loadDatabase = async (): Promise<Database | null> => {
     try {
-        // Add timestamp to bypass browser cache
-        const response = await fetch('/db.json?t=' + new Date().getTime());
+        // Add timestamp to bypass browser cache explicitly
+        const response = await fetch('/db.json?t=' + new Date().getTime(), {
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
         
         if (!response.ok) {
-            // File not found or server error, fallback to local storage/defaults
+            // File not found or server error
             return null;
         }
         
         const data = await response.json();
         return data;
     } catch (e) {
-        console.error("Error loading remote database:", e);
+        console.warn("Could not load remote database (db.json). Using local storage.", e);
         return null;
     }
 };
