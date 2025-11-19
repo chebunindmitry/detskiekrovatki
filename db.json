@@ -1,6 +1,32 @@
 {
   "products": [
     {
+      "id": 1763553816657,
+      "categoryId": 1,
+      "name": "Хилтон Графит Матовый",
+      "price": 34000,
+      "specialPrice": 29000,
+      "sku": "436",
+      "stock": 10,
+      "status": true,
+      "image": "img/399812.webp",
+      "images": [
+        "img/399812.webp"
+      ],
+      "description": "",
+      "attributes": [],
+      "variantLabels": [
+        "Цвет"
+      ],
+      "variantValues": [
+        ""
+      ],
+      "variants": [],
+      "stickerIds": [],
+      "isBundle": false,
+      "bundleItems": []
+    },
+    {
       "id": 1763546793751,
       "categoryId": 1763546984012,
       "name": "Детская «Хилтон» Дуб Крафт золотой, Мокко матовый",
