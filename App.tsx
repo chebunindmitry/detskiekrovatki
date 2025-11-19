@@ -36,7 +36,7 @@ interface StoreSettings {
 
 // Statistics Interface
 interface StoreStats {
-    favoritesCount: number; // Total times items were favorited
+    favoritesCount: number; // Total items favorited
     consultationsCount: number; // Total consultations submitted
 }
 
@@ -183,19 +183,16 @@ const App: React.FC = () => {
                 if (remoteDB.stickers && Array.isArray(remoteDB.stickers)) setStickers(remoteDB.stickers);
                 if (remoteDB.stats) setStats(remoteDB.stats);
 
-                setSysNotification({msg: 'База данных обновлена', type: 'success'});
+                // Silent update for normal users
             } else {
                 console.log('Using local/mock data (db.json not found or failed)');
                 // Show error only if we are falling back to mock data and local storage is empty/mock
-                setSysNotification({msg: 'Ошибка загрузки db.json. См. консоль (F12).', type: 'error'});
+                // setSysNotification({msg: 'Ошибка загрузки db.json. См. консоль (F12).', type: 'error'});
             }
         } catch (e) {
             console.error(e);
             setSysNotification({msg: 'Критическая ошибка БД', type: 'error'});
         }
-
-        // Hide notification after 4 seconds
-        setTimeout(() => setSysNotification(null), 4000);
     };
     initDB();
   }, []);
@@ -452,6 +449,8 @@ const App: React.FC = () => {
     setIsAdmin(true);
     localStorage.setItem('admin_phone', '89203718545');
     setCurrentScreen(Screen.ADMIN_DASHBOARD);
+    setSysNotification({msg: 'Режим администратора. База данных обновлена.', type: 'success'});
+    setTimeout(() => setSysNotification(null), 4000);
   };
 
   const handleAdminLogout = () => {

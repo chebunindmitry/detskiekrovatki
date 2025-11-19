@@ -130,6 +130,61 @@ def get_full_database():
         }
 
 
+# --- CRUD операции для товаров ---
+
+
+@app.post("/products/", response_model=Product)
+def create_product(product: Product, session: Session = Depends(get_session)):
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@app.get("/products/{product_id}", response_model=Product)
+def get_product(product_id: int, session: Session = Depends(get_session)):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+@app.put("/products/{product_id}", response_model=Product)
+def update_product(
+    product_id: int, product_update: Product, session: Session = Depends(get_session)
+):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    # Обновляем поля
+    for key, value in product_update.dict(exclude_unset=True).items():
+        setattr(product, key, value)
+
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return product
+
+
+@app.delete("/products/{product_id}")
+def delete_product(product_id: int, session: Session = Depends(get_session)):
+    product = session.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    session.delete(product)
+    session.commit()
+    return {"message": "Product deleted successfully"}
+
+
+# Получить все товары
+@app.get("/products/", response_model=List[Product])
+def get_all_products(session: Session = Depends(get_session)):
+    products = session.exec(select(Product)).all()
+    return products
+
+
 # --- Инициализация демо-данными (если база пуста) ---
 def seed_data():
     with Session(engine) as session:

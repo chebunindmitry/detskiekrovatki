@@ -77,7 +77,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [showImportModal, setShowImportModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
-  const [showSyncModal, setShowSyncModal] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
   // DnD State
@@ -195,26 +194,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // --- BACKUP / RESTORE Logic ---
-  const handleDownloadStaticDB = () => {
-    const dbData = {
-        _generatedAt: Date.now(), // Timestamp to check freshness
-        products,
-        categories,
-        settings: storeSettings,
-        stickers,
-        stats
-    };
-    const blob = new Blob([JSON.stringify(dbData, null, 2)], {type : 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "db.json");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToastMessage('Файл db.json готов! Загрузите его на сервер.');
-  };
-
   const handleBackup = () => {
       const backup = {
           version: 1,
@@ -924,13 +903,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <div>
               <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Логотип</label>
               
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-3 border border-blue-100 dark:border-blue-800">
-                  <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
-                      ℹ️ <b>Совет:</b> Для <code>db.json</code> лучше использовать ссылку, а не загружать файл.
-                      Загрузите лого в папку <code>img</code> на сервере и укажите путь: <code>img/logo.png</code>.
-                  </p>
-              </div>
-
               <div className="flex gap-4 items-start">
                    <div className="w-32 h-32 bg-white dark:bg-[#17212b] border-2 border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                        {localSettings.logoUrl ? <img src={localSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-500">Logo</span>}
@@ -1092,11 +1064,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">Загрузить фото</label>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-2 border border-blue-100 dark:border-blue-800">
-                             <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
-                                 ℹ️ <b>Совет:</b> Загрузите фото в папку <code>img</code> на сервере и впишите путь: <code>img/photo.jpg</code>, чтобы не утяжелять <code>db.json</code>.
-                             </p>
-                        </div>
 
                         <details className="text-xs text-gray-500">
                             <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файлы с устройства (Base64)</summary>
@@ -1220,36 +1187,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     <div className="flex flex-col h-full bg-white dark:bg-[#0e1621] relative transition-colors z-0">
         {toast && <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-2xl flex items-center animate-bounce-in ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}><span className="font-bold">{toast.message}</span></div>}
         
-        {/* SYNC MODAL */}
-        {showSyncModal && (
-            <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-white dark:bg-[#17212b] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-700 animate-bounce-in">
-                    <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white text-center">Синхронизация (db.json)</h3>
-                    <div className="space-y-4">
-                        <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
-                            Чтобы ваши изменения увидели все пользователи, нужно обновить файл базы данных на сервере.
-                        </p>
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
-                            <ol className="list-decimal list-inside text-sm space-y-2 text-gray-700 dark:text-gray-200">
-                                <li>Скачайте актуальный файл <b className="text-blue-600 dark:text-blue-400">db.json</b></li>
-                                <li>Загрузите его на ваш хостинг в папку <code>upload/</code></li>
-                                <li className="break-all text-xs text-gray-500 mt-1">URL: https://детскиекроватки.рф/upload/db.json</li>
-                                <li><b>Важно:</b> Для стабильной работы настройте на сервере заголовки <code>Access-Control-Allow-Origin: *</code>.</li>
-                                <li>Если CORS не настроен, приложение будет использовать прокси-серверы.</li>
-                            </ol>
-                        </div>
-                        <button onClick={handleDownloadStaticDB} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            Скачать db.json
-                        </button>
-                        <button onClick={() => setShowSyncModal(false)} className="w-full py-3 text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors text-sm">
-                            Закрыть
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
-
         {showImportModal && (
             <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center">
                 <div className="bg-white dark:bg-[#17212b] w-full max-w-sm rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-2xl">
@@ -1281,15 +1218,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             </select>
                         </div>
                         <div>
-                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Изображение (URL или Файл)</label>
-                             
-                             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-2 border border-blue-100 dark:border-blue-800">
-                                 <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
-                                     ℹ️ <b>Совет:</b> Для <code>db.json</code> лучше использовать ссылку. 
-                                     Загрузите фото в папку <code>img</code> на сервере и укажите путь: <code>img/category.jpg</code>.
-                                 </p>
-                             </div>
-
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Изображение (URL или путь в img/)</label>
                              <input 
                                 type="text" 
                                 placeholder="URL или путь (например: img/cat1.jpg)" 
@@ -1297,14 +1226,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 onChange={e => setNewCategory({...newCategory, image: e.target.value})}
                                 className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-xs mb-2"
                              />
-                             
-                             <details className="text-xs text-gray-500">
-                                <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файл (Увеличит вес db.json)</summary>
-                                <div onDrop={handleCategoryDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => catFileInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#17212b] cursor-pointer hover:border-blue-500 transition-colors">
-                                    {newCategory.image ? <img src={newCategory.image} className="h-24 mx-auto object-contain" alt="Preview" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
-                                    <input type="file" ref={catFileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewCategory(c => ({...c, image: res})))} className="hidden" accept="image/*" />
-                                </div>
-                             </details>
                         </div>
                         <div className="flex items-center gap-4 mt-4">
                             <div className="flex items-center gap-2"><input type="checkbox" id="showImg" checked={newCategory.showImage} onChange={e => setNewCategory({...newCategory, showImage: e.target.checked})} className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" /><label htmlFor="showImg" className="text-gray-900 dark:text-white text-sm">Показывать картинку</label></div>
@@ -1376,14 +1297,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                         onChange={e => {
                                             const val = e.target.value === 'root' ? 'root' : Number(e.target.value);
                                             setFormParentCategory(val);
-                                            // If switching parent, reset subcategory selection to first child or parent itself
-                                            if (val === 'root') {
-                                                // Picking a root category that isn't actually a category object isn't possible here except 'root' string which means "Top Level" context
-                                                // Actually, if user selects 'root', it implies creating a root item, but products must belong to a category.
-                                                // If 'root' is selected, we might filter for top-level categories to pick from in the second box.
-                                                // Let's simplify:
-                                            } else {
-                                                // Auto-select the parent itself as default
+                                            if (val !== 'root') {
                                                 setNewProduct({...newProduct, categoryId: val as number});
                                             }
                                         }} 
@@ -1403,7 +1317,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                         className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-gray-900 dark:text-white text-xs"
                                     >
                                         {formParentCategory === 'root' ? (
-                                            // Show all root categories if no parent selected (allow placing in root)
                                             categories.filter(c => !c.parentId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)
                                         ) : (
                                             <>
@@ -1648,32 +1561,45 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
 
                         <div>
-                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фото (URL или Путь)</label>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фотографии (URL или путь в img/)</label>
                             
-                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-2 border border-blue-100 dark:border-blue-800">
-                                 <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
-                                     ℹ️ <b>Совет:</b> Чтобы <code>db.json</code> не весил много, не загружайте файлы сюда.
-                                     Лучше загрузите фото в папку <code>/img</code> в репозитории и напишите путь: <code>img/photo.jpg</code>.
-                                 </p>
-                            </div>
+                            {/* 5 Input Lines */}
+                            <div className="space-y-2 mb-2">
+                                {[0, 1, 2, 3, 4].map(idx => {
+                                    const isMain = idx === 0;
+                                    const rawVal = isMain 
+                                        ? newProduct.mainImage 
+                                        : (newProduct.additionalImages ? newProduct.additionalImages.split(',')[idx - 1] : '');
 
-                            <div className="mb-2">
-                                <input 
-                                    type="text" 
-                                    placeholder="Например: img/tovar1.jpg или https://..." 
-                                    value={newProduct.mainImage} 
-                                    onChange={e => setNewProduct({...newProduct, mainImage: e.target.value})}
-                                    className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-sm"
-                                />
+                                    const handleChange = (newValue: string) => {
+                                        if (isMain) {
+                                            setNewProduct(p => ({...p, mainImage: newValue}));
+                                        } else {
+                                            setNewProduct(p => {
+                                                const arr = p.additionalImages ? p.additionalImages.split(',') : [];
+                                                const targetIdx = idx - 1;
+                                                // Fill gaps
+                                                for (let i = 0; i <= targetIdx; i++) {
+                                                    if (arr[i] === undefined) arr[i] = '';
+                                                }
+                                                arr[targetIdx] = newValue;
+                                                return {...p, additionalImages: arr.join(',')};
+                                            });
+                                        }
+                                    };
+
+                                    return (
+                                        <input 
+                                            key={idx}
+                                            type="text" 
+                                            placeholder={isMain ? "Основное фото (img/1.jpg)" : `Доп. фото ${idx}`} 
+                                            value={rawVal || ''}
+                                            onChange={e => handleChange(e.target.value)}
+                                            className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-sm"
+                                        />
+                                    );
+                                })}
                             </div>
-                            
-                            <details className="text-xs text-gray-500 mb-2">
-                                <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файл (Превратит в Base64 - тяжелый вес)</summary>
-                                <div onDrop={handleProductDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => fileInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-500 transition-colors bg-gray-50 dark:bg-[#17212b] cursor-pointer">
-                                    {newProduct.mainImage ? <img src={newProduct.mainImage} alt="Preview" className="h-32 mx-auto object-contain rounded" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
-                                    <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewProduct(p => ({...p, mainImage: res})))} className="hidden" accept="image/*" />
-                                </div>
-                            </details>
                         </div>
                         <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg">
                             {editingId ? 'Сохранить' : 'Создать'}
@@ -1691,10 +1617,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin</h2>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setShowSyncModal(true)} className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow flex items-center animate-pulse">
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        Сохранить на сервер
-                    </button>
                     <button onClick={onExit} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors flex items-center">
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         В магазин
