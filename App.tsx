@@ -183,15 +183,15 @@ const App: React.FC = () => {
                 if (remoteDB.stickers && Array.isArray(remoteDB.stickers)) setStickers(remoteDB.stickers);
                 if (remoteDB.stats) setStats(remoteDB.stats);
 
-                setSysNotification({msg: 'База данных успешно обновлена', type: 'success'});
+                setSysNotification({msg: 'База данных обновлена', type: 'success'});
             } else {
                 console.log('Using local/mock data (db.json not found or failed)');
                 // Show error only if we are falling back to mock data and local storage is empty/mock
-                setSysNotification({msg: 'Не удалось загрузить db.json. Включен Демо-режим.', type: 'error'});
+                setSysNotification({msg: 'Ошибка загрузки db.json. См. консоль (F12).', type: 'error'});
             }
         } catch (e) {
             console.error(e);
-            setSysNotification({msg: 'Ошибка подключения к базе данных', type: 'error'});
+            setSysNotification({msg: 'Критическая ошибка БД', type: 'error'});
         }
 
         // Hide notification after 4 seconds

@@ -1234,7 +1234,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <li>Скачайте актуальный файл <b className="text-blue-600 dark:text-blue-400">db.json</b></li>
                                 <li>Загрузите его на ваш хостинг в папку <code>upload/</code></li>
                                 <li className="break-all text-xs text-gray-500 mt-1">URL: https://детскиекроватки.рф/upload/db.json</li>
-                                <li>Перезагрузите приложение.</li>
+                                <li><b>Важно:</b> Для стабильной работы настройте на сервере заголовки <code>Access-Control-Allow-Origin: *</code>.</li>
+                                <li>Если CORS не настроен, приложение будет использовать прокси-серверы.</li>
                             </ol>
                         </div>
                         <button onClick={handleDownloadStaticDB} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
