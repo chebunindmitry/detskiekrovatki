@@ -1232,9 +1232,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
                             <ol className="list-decimal list-inside text-sm space-y-2 text-gray-700 dark:text-gray-200">
                                 <li>Скачайте актуальный файл <b className="text-blue-600 dark:text-blue-400">db.json</b></li>
-                                <li>Загрузите его в корень вашего сайта (GitHub или хостинг)</li>
-                                <li>Если добавили новые фото, загрузите их в папку <code>img</code> (или другую)</li>
-                                <li><b>Подождите 2-3 минуты</b>, пока GitHub обновит файлы.</li>
+                                <li>Загрузите его на ваш хостинг в папку <code>upload/</code></li>
+                                <li className="break-all text-xs text-gray-500 mt-1">URL: https://детскиекроватки.рф/upload/db.json</li>
                                 <li>Перезагрузите приложение.</li>
                             </ol>
                         </div>
