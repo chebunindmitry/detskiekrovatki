@@ -922,13 +922,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
           <div>
               <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Логотип</label>
+              
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-3 border border-blue-100 dark:border-blue-800">
+                  <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
+                      ℹ️ <b>Совет:</b> Для <code>db.json</code> лучше использовать ссылку, а не загружать файл.
+                      Загрузите лого в папку <code>img</code> на сервере и укажите путь: <code>img/logo.png</code>.
+                  </p>
+              </div>
+
               <div className="flex gap-4 items-start">
-                   <div onDrop={handleLogoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => logoInputRef.current?.click()} className="w-32 h-32 bg-white dark:bg-[#17212b] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors overflow-hidden flex-shrink-0">
+                   <div className="w-32 h-32 bg-white dark:bg-[#17212b] border-2 border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                        {localSettings.logoUrl ? <img src={localSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-500">Logo</span>}
-                       <input type="file" ref={logoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, logoUrl: res})))} className="hidden" accept="image/*" />
                    </div>
                    <div className="flex-1">
-                       <input type="text" value={localSettings.logoUrl} onChange={e => setLocalSettings({...localSettings, logoUrl: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white text-sm mb-2" placeholder="URL изображения..." />
+                       <input type="text" value={localSettings.logoUrl} onChange={e => setLocalSettings({...localSettings, logoUrl: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white text-sm mb-2" placeholder="URL или путь (img/logo.png)..." />
+                       
+                       <details className="text-xs text-gray-500">
+                            <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файл (Не рекомендуется для db.json)</summary>
+                            <div onDrop={handleLogoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => logoInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#242d37] cursor-pointer hover:border-blue-500 transition-colors">
+                                <span className="text-gray-500 text-xs">Перетащите файл (Base64 - тяжело!)</span>
+                                <input type="file" ref={logoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, logoUrl: res})))} className="hidden" accept="image/*" />
+                            </div>
+                       </details>
                    </div>
               </div>
           </div>
@@ -1076,10 +1091,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">Загрузить фото</label>
-                        <div onDrop={handleRealPhotoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => realPhotoInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#242d37] cursor-pointer hover:border-blue-500 transition-colors">
-                            <span className="text-gray-500 text-xs">Нажмите или перетащите сюда фото</span>
-                            <input type="file" ref={realPhotoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, realPhotos: [...(s.realPhotos || []), res]})))} className="hidden" accept="image/*" />
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-2 border border-blue-100 dark:border-blue-800">
+                             <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
+                                 ℹ️ <b>Совет:</b> Загрузите фото в папку <code>img</code> на сервере и впишите путь: <code>img/photo.jpg</code>, чтобы не утяжелять <code>db.json</code>.
+                             </p>
                         </div>
+
+                        <details className="text-xs text-gray-500">
+                            <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файлы с устройства (Base64)</summary>
+                            <div onDrop={handleRealPhotoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => realPhotoInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#242d37] cursor-pointer hover:border-blue-500 transition-colors">
+                                <span className="text-gray-500 text-xs">Нажмите или перетащите сюда фото</span>
+                                <input type="file" ref={realPhotoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, realPhotos: [...(s.realPhotos || []), res]})))} className="hidden" accept="image/*" />
+                            </div>
+                        </details>
                     </div>
 
                     {/* Grid of photos */}
@@ -1208,6 +1232,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <ol className="list-decimal list-inside text-sm space-y-2 text-gray-700 dark:text-gray-200">
                                 <li>Скачайте актуальный файл <b className="text-blue-600 dark:text-blue-400">db.json</b></li>
                                 <li>Загрузите его в корень вашего сайта (GitHub или хостинг)</li>
+                                <li>Если добавили новые фото, загрузите их в папку <code>img</code> (или другую)</li>
                                 <li>Перезагрузите сайт на других устройствах</li>
                             </ol>
                         </div>
@@ -1255,17 +1280,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div>
                             <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Изображение (URL или Файл)</label>
+                             
+                             <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-2 border border-blue-100 dark:border-blue-800">
+                                 <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
+                                     ℹ️ <b>Совет:</b> Для <code>db.json</code> лучше использовать ссылку. 
+                                     Загрузите фото в папку <code>img</code> на сервере и укажите путь: <code>img/category.jpg</code>.
+                                 </p>
+                             </div>
+
                              <input 
                                 type="text" 
-                                placeholder="URL картинки (рекомендуется для db.json)" 
+                                placeholder="URL или путь (например: img/cat1.jpg)" 
                                 value={newCategory.image} 
                                 onChange={e => setNewCategory({...newCategory, image: e.target.value})}
                                 className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-xs mb-2"
                              />
-                             <div onDrop={handleCategoryDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => catFileInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#17212b] cursor-pointer hover:border-blue-500 transition-colors">
-                                {newCategory.image ? <img src={newCategory.image} className="h-24 mx-auto object-contain" alt="Preview" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
-                                <input type="file" ref={catFileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewCategory(c => ({...c, image: res})))} className="hidden" accept="image/*" />
-                             </div>
+                             
+                             <details className="text-xs text-gray-500">
+                                <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файл (Увеличит вес db.json)</summary>
+                                <div onDrop={handleCategoryDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => catFileInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#17212b] cursor-pointer hover:border-blue-500 transition-colors">
+                                    {newCategory.image ? <img src={newCategory.image} className="h-24 mx-auto object-contain" alt="Preview" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
+                                    <input type="file" ref={catFileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewCategory(c => ({...c, image: res})))} className="hidden" accept="image/*" />
+                                </div>
+                             </details>
                         </div>
                         <div className="flex items-center gap-4 mt-4">
                             <div className="flex items-center gap-2"><input type="checkbox" id="showImg" checked={newCategory.showImage} onChange={e => setNewCategory({...newCategory, showImage: e.target.checked})} className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" /><label htmlFor="showImg" className="text-gray-900 dark:text-white text-sm">Показывать картинку</label></div>
@@ -1609,20 +1646,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
 
                         <div>
-                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фото (Drop/Paste/URL)</label>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фото (URL или Путь)</label>
+                            
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-2 border border-blue-100 dark:border-blue-800">
+                                 <p className="text-[10px] text-blue-800 dark:text-blue-200 leading-tight">
+                                     ℹ️ <b>Совет:</b> Чтобы <code>db.json</code> не весил много, не загружайте файлы сюда.
+                                     Лучше загрузите фото в папку <code>/img</code> в репозитории и напишите путь: <code>img/photo.jpg</code>.
+                                 </p>
+                            </div>
+
                             <div className="mb-2">
                                 <input 
                                     type="text" 
-                                    placeholder="URL изображения (рекомендуется для db.json)" 
+                                    placeholder="Например: img/tovar1.jpg или https://..." 
                                     value={newProduct.mainImage} 
                                     onChange={e => setNewProduct({...newProduct, mainImage: e.target.value})}
                                     className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-sm"
                                 />
                             </div>
-                            <div onDrop={handleProductDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-500 transition-colors mb-2 bg-gray-50 dark:bg-[#17212b] cursor-pointer">
-                                {newProduct.mainImage ? <img src={newProduct.mainImage} alt="Preview" className="h-32 mx-auto object-contain rounded" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
-                                <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewProduct(p => ({...p, mainImage: res})))} className="hidden" accept="image/*" />
-                            </div>
+                            
+                            <details className="text-xs text-gray-500 mb-2">
+                                <summary className="cursor-pointer hover:text-blue-500 transition-colors">Загрузить файл (Превратит в Base64 - тяжелый вес)</summary>
+                                <div onDrop={handleProductDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => fileInputRef.current?.click()} className="mt-2 border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-500 transition-colors bg-gray-50 dark:bg-[#17212b] cursor-pointer">
+                                    {newProduct.mainImage ? <img src={newProduct.mainImage} alt="Preview" className="h-32 mx-auto object-contain rounded" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
+                                    <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewProduct(p => ({...p, mainImage: res})))} className="hidden" accept="image/*" />
+                                </div>
+                            </details>
                         </div>
                         <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg">
                             {editingId ? 'Сохранить' : 'Создать'}

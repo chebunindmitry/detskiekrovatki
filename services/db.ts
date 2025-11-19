@@ -11,8 +11,9 @@ export interface Database {
 
 export const loadDatabase = async (): Promise<Database | null> => {
     try {
+        // Use relative path './db.json' to support GitHub Pages subdirectories
         // Add timestamp to bypass browser cache explicitly
-        const response = await fetch('/db.json?t=' + new Date().getTime(), {
+        const response = await fetch('./db.json?t=' + new Date().getTime(), {
             headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
