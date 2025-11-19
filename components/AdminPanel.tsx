@@ -194,6 +194,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // --- BACKUP / RESTORE Logic ---
+  const handleDownloadStaticDB = () => {
+    const dbData = {
+        products,
+        categories,
+        settings: storeSettings,
+        stickers,
+        stats
+    };
+    const blob = new Blob([JSON.stringify(dbData, null, 2)], {type : 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "db.json");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToastMessage('Файл db.json готов! Загрузите его на сервер.');
+  };
+
   const handleBackup = () => {
       const backup = {
           version: 1,
@@ -918,7 +937,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {/* Backup Section */}
           <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Резервное копирование</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Синхронизация с сайтом</h3>
+              <button 
+                type="button"
+                onClick={handleDownloadStaticDB}
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-xl shadow mb-2 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                💾 Скачать db.json
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+                1. Скачайте файл. <br/>
+                2. Загрузите его в корень вашего сайта через FTP. <br/>
+                3. Все изменения станут доступны на всех устройствах.
+              </p>
+
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Резервное копирование (Локально)</h3>
               <div className="flex gap-4">
                   <button 
                       type="button"
@@ -926,7 +960,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow transition-colors flex items-center justify-center"
                   >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                      Скачать бэкап
+                      Бэкап
                   </button>
                   <button 
                       type="button"
@@ -944,9 +978,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       accept=".json" 
                   />
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Скачивает полный архив базы данных (товары, категории, настройки, стикеры) в JSON формате.
-              </p>
           </div>
       </form>
   );
@@ -1557,7 +1588,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
 
                         <div>
-                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фото (Drop/Paste)</label>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фото (Drop/Paste/URL)</label>
+                            <div className="mb-2">
+                                <input 
+                                    type="text" 
+                                    placeholder="Или вставьте ссылку на фото (например: /images/photo.jpg)" 
+                                    value={newProduct.mainImage} 
+                                    onChange={e => setNewProduct({...newProduct, mainImage: e.target.value})}
+                                    className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-sm"
+                                />
+                            </div>
                             <div onDrop={handleProductDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-500 transition-colors mb-2 bg-gray-50 dark:bg-[#17212b] cursor-pointer">
                                 {newProduct.mainImage ? <img src={newProduct.mainImage} alt="Preview" className="h-32 mx-auto object-contain rounded" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
                                 <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewProduct(p => ({...p, mainImage: res})))} className="hidden" accept="image/*" />

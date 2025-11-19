@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { enrichProductsWithDescriptions } from './services/geminiService';
 import { searchProductsApi } from './services/storeService';
+import { loadDatabase } from './services/db';
 import { Product, Category, Screen, Tab, Sticker } from './types';
 import ProductCard from './components/ProductCard';
 import BottomNav from './components/BottomNav';
@@ -163,6 +164,23 @@ const App: React.FC = () => {
 
   // --- Effects ---
 
+  // Load Remote DB on startup
+  useEffect(() => {
+    const initDB = async () => {
+        const remoteDB = await loadDatabase();
+        if (remoteDB) {
+            // Remote DB takes precedence over local storage
+            console.log('Remote DB loaded');
+            if (remoteDB.products) setProducts(remoteDB.products);
+            if (remoteDB.categories) setCategories(remoteDB.categories);
+            if (remoteDB.settings) setStoreSettings(remoteDB.settings);
+            if (remoteDB.stickers) setStickers(remoteDB.stickers);
+            if (remoteDB.stats) setStats(remoteDB.stats);
+        }
+    };
+    initDB();
+  }, []);
+
   useEffect(() => {
     // Telegram Web App Initialization
     const tg = (window as any).Telegram?.WebApp;
@@ -198,7 +216,7 @@ const App: React.FC = () => {
     localStorage.setItem('theme_preference', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  // Internal Database Sync
+  // Internal Database Sync (Backup to local storage)
   useEffect(() => {
     localStorage.setItem('db_products', JSON.stringify(products));
   }, [products]);
