@@ -197,6 +197,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // --- BACKUP / RESTORE Logic ---
   const handleDownloadStaticDB = () => {
     const dbData = {
+        _generatedAt: Date.now(), // Timestamp to check freshness
         products,
         categories,
         settings: storeSettings,
@@ -337,7 +338,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               const status = cols[6] === '1' || cols[6].toLowerCase() === 'true';
               const description = cols[7] || '';
               const mainImage = cols[8] || 'https://picsum.photos/200';
-              const addImages = cols[9] ? cols[9].split(',').map(s => s.trim()).filter(s => s) : [];
+              const additionalImgs = cols[9] ? cols[9].split(',').map(s => s.trim()).filter(s => s) : [];
               
               const rawAttrs = cols[10] || "";
               const attributes = rawAttrs.split('|').map(pair => {
@@ -357,7 +358,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   status,
                   description,
                   image: mainImage,
-                  images: [mainImage, ...addImages],
+                  images: [mainImage, ...additionalImgs],
                   attributes
               });
           }
@@ -1233,7 +1234,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <li>Скачайте актуальный файл <b className="text-blue-600 dark:text-blue-400">db.json</b></li>
                                 <li>Загрузите его в корень вашего сайта (GitHub или хостинг)</li>
                                 <li>Если добавили новые фото, загрузите их в папку <code>img</code> (или другую)</li>
-                                <li>Перезагрузите сайт на других устройствах</li>
+                                <li><b>Подождите 2-3 минуты</b>, пока GitHub обновит файлы.</li>
+                                <li>Перезагрузите приложение.</li>
                             </ol>
                         </div>
                         <button onClick={handleDownloadStaticDB} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">

@@ -170,7 +170,9 @@ const App: React.FC = () => {
         const remoteDB = await loadDatabase();
         if (remoteDB) {
             // Remote DB takes precedence over local storage
-            console.log('Remote DB loaded successfully from server');
+            const dateStr = remoteDB._generatedAt ? new Date(remoteDB._generatedAt).toLocaleString() : 'Unknown Date';
+            console.log('Remote DB loaded successfully. Version:', dateStr);
+            
             if (remoteDB.products && Array.isArray(remoteDB.products)) setProducts(remoteDB.products);
             if (remoteDB.categories && Array.isArray(remoteDB.categories)) setCategories(remoteDB.categories);
             if (remoteDB.settings) setStoreSettings(remoteDB.settings);

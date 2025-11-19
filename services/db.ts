@@ -7,21 +7,28 @@ export interface Database {
     settings?: any;
     stickers?: Sticker[];
     stats?: any;
+    _generatedAt?: number; // Timestamp verification
 }
 
 export const loadDatabase = async (): Promise<Database | null> => {
     try {
+        // Generate a unique timestamp to bust cache
+        const timestamp = new Date().getTime();
+        
         // Use relative path './db.json' to support GitHub Pages subdirectories
-        // Add timestamp to bypass browser cache explicitly
-        const response = await fetch('./db.json?t=' + new Date().getTime(), {
+        // Added 'cache: no-store' and explicit headers to force network request
+        const response = await fetch(`./db.json?ver=${timestamp}`, {
+            method: 'GET',
+            cache: 'no-store',
             headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
         
         if (!response.ok) {
-            // File not found or server error
+            console.warn(`DB Fetch failed: ${response.status} ${response.statusText}`);
             return null;
         }
         
