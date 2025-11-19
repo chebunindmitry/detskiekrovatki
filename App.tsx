@@ -2,13 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { enrichProductsWithDescriptions } from './services/geminiService';
 import { searchProductsApi } from './services/storeService';
-import { loadDatabase } from './services/db';
 import { Product, Category, Screen, Tab, Sticker } from './types';
 import ProductCard from './components/ProductCard';
 import BottomNav from './components/BottomNav';
 import ProductGallery from './components/ProductGallery';
 import AdminPanel from './components/AdminPanel';
-import { mockCategories, mockProducts, TRANSLATIONS } from './constants';
+import { mockCategories, mockProducts } from './constants';
 
 // Enum for Sorting
 enum SortOption {
@@ -32,8 +31,6 @@ interface StoreSettings {
     realPhotos: string[];
     // Catalog Settings
     showProductsFromSubcategories: boolean;
-    // Language Settings
-    language: 'ru' | 'en';
 }
 
 // Statistics Interface
@@ -43,10 +40,6 @@ interface StoreStats {
 }
 
 const App: React.FC = () => {
-  // Telegram Integration
-  const [isTelegram, setIsTelegram] = useState(false);
-  const [isDbLoaded, setIsDbLoaded] = useState(false);
-
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('theme_preference');
@@ -60,68 +53,94 @@ const App: React.FC = () => {
   // Lightbox State
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
-  // Initial Defaults
-  const defaultSettings: StoreSettings = {
-      name: 'Детские Кроватки.рф',
-      description: 'Уютная и безопасная мебель для вашего малыша. Поможем выбрать лучшее!',
-      logoUrl: 'https://детскиекроватки.рф/image/catalog/logoyellowupdate.png',
-      managerContact: 'https://t.me/+79959060223',
-      showSku: true,
-      realPhotosEnabled: false,
-      realPhotosLabel: 'Фото от наших покупателей',
-      realPhotos: [],
-      showProductsFromSubcategories: true,
-      language: 'ru'
-  };
-
-  // --- State Definitions (Initialized with defaults or local storage fallback) ---
-  
+  // Store Settings State
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
+      const defaults: StoreSettings = {
+          name: 'Детские Кроватки.рф',
+          description: 'Уютная и безопасная мебель для вашего малыша. Поможем выбрать лучшее!',
+          logoUrl: 'https://детскиекроватки.рф/image/catalog/logoyellowupdate.png',
+          managerContact: 'https://t.me/+79959060223',
+          showSku: true,
+          realPhotosEnabled: false,
+          realPhotosLabel: 'Фото от наших покупателей',
+          realPhotos: [],
+          showProductsFromSubcategories: true // Default to legacy behavior
+      };
+
       try {
           const saved = localStorage.getItem('store_settings');
-          if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
-      } catch (e) {}
-      return defaultSettings;
+          if (saved) {
+              const parsed = JSON.parse(saved);
+              // Merge with defaults to ensure new fields exist if loading old data
+              return { ...defaults, ...parsed };
+          }
+      } catch (e) {
+          console.error("Error loading settings", e);
+      }
+      return defaults;
   });
-  
+
+  // Statistics State
   const [stats, setStats] = useState<StoreStats>(() => {
+      const defaults = { favoritesCount: 0, consultationsCount: 0 };
       try {
           const saved = localStorage.getItem('store_stats');
           if (saved) return JSON.parse(saved);
-      } catch (e) {}
-      return { favoritesCount: 0, consultationsCount: 0 };
+          return defaults;
+      } catch (e) {
+          return defaults;
+      }
   });
 
+  // Stickers State
   const [stickers, setStickers] = useState<Sticker[]>(() => {
-      try {
-          const saved = localStorage.getItem('store_stickers');
-          if (saved) return JSON.parse(saved);
-      } catch (e) {}
-      return [
+      const defaults: Sticker[] = [
           { id: 'sale', name: 'Акция', bgColor: '#ef4444', textColor: '#ffffff' },
           { id: 'new', name: 'Новинка', bgColor: '#22c55e', textColor: '#ffffff' },
           { id: 'hit', name: 'Популярное', bgColor: '#a855f7', textColor: '#ffffff' },
           { id: 'rec', name: 'Рекомендуем', bgColor: '#f97316', textColor: '#ffffff' },
       ];
+      try {
+          const saved = localStorage.getItem('store_stickers');
+          if (saved) return JSON.parse(saved);
+          return defaults;
+      } catch (e) {
+          return defaults;
+      }
   });
 
+  // Data State - Initialize from LocalStorage (Internal Database)
+  // Fallback to mockProducts if DB is empty to prevent data loss appearance
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('db_products');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return mockProducts; 
+      const savedProducts = localStorage.getItem('db_products');
+      if (savedProducts) {
+        const parsed = JSON.parse(savedProducts);
+        if (Array.isArray(parsed)) {
+             return parsed;
+        }
+      }
+      return mockProducts; 
+    } catch (e) {
+      console.error("Error loading DB", e);
+      return mockProducts;
+    }
   });
 
+  // Categories State
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
-        const saved = localStorage.getItem('db_categories');
-        if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return mockCategories;
+        const savedCategories = localStorage.getItem('db_categories');
+        if (savedCategories) {
+            const parsed = JSON.parse(savedCategories);
+            if (Array.isArray(parsed)) return parsed;
+        }
+        return mockCategories;
+    } catch (e) {
+        console.error("Error loading Categories", e);
+        return mockCategories;
+    }
   });
-
-  const t = TRANSLATIONS[storeSettings.language] || TRANSLATIONS.ru;
 
   const [favorites, setFavorites] = useState<number[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -144,48 +163,20 @@ const App: React.FC = () => {
 
   // --- Effects ---
 
-  // 1. Load Database from Server (db.json) on mount
   useEffect(() => {
-    const initData = async () => {
-        const dbData = await loadDatabase();
-        if (dbData) {
-            setProducts(dbData.products || []);
-            setCategories(dbData.categories || []);
-            if (dbData.settings) setStoreSettings(prev => ({ ...prev, ...dbData.settings }));
-            if (dbData.stickers) setStickers(dbData.stickers);
-            if (dbData.stats) setStats(dbData.stats);
-            setIsDbLoaded(true);
-        }
-    };
-    initData();
-  }, []);
-
-  // 2. Telegram & Admin Init
-  useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-        tg.ready();
-        if (tg.platform !== 'unknown') {
-            setIsTelegram(true);
-            tg.expand();
-            if (tg.colorScheme) setIsDarkMode(tg.colorScheme === 'dark');
-            tg.onEvent('themeChanged', () => {
-                setIsDarkMode(tg.colorScheme === 'dark');
-            });
-        }
-    }
-
+    // Check for persistent admin session
     const storedPhone = localStorage.getItem('admin_phone');
     if (storedPhone === '89203718545') {
       setIsAdmin(true);
     }
   }, []);
 
-  // 3. Sync State to LocalStorage (as a backup/cache for admin edits)
+  // Theme Effect
   useEffect(() => {
     localStorage.setItem('theme_preference', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
+  // Internal Database Sync
   useEffect(() => {
     localStorage.setItem('db_products', JSON.stringify(products));
   }, [products]);
@@ -215,7 +206,10 @@ const App: React.FC = () => {
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setCurrentScreen(tab);
+    // Reset selection when switching main tabs
     if (tab === Screen.CATALOG) {
+      // Do not reset category immediately to allow user to stay in context?
+      // Or reset to Root? Usually reset to root for bottom nav "Catalog" click.
       if (currentScreen !== Screen.CATALOG) {
           setSelectedCategory(null);
           setSearchQuery('');
@@ -227,11 +221,14 @@ const App: React.FC = () => {
     setSelectedProduct(product);
     setCurrentScreen(Screen.PRODUCT_DETAILS);
     
-    // Basic AI enrichment logic
+    // Optional: Lazy load AI description if missing
     if (!product.description || product.description.length < 20) {
          try {
-             // Only try to enrich if we have an API key available (mock check)
-             // In real usage, this would be handled carefully to not spam API
+             const [enriched] = await enrichProductsWithDescriptions([product], "Подробное описание карточки товара");
+             if (enriched) {
+                 setProducts(prev => prev.map(p => p.id === enriched.id ? enriched : p));
+                 setSelectedProduct(enriched);
+             }
          } catch (e) {
              console.error("AI enrichment failed", e);
          }
@@ -273,6 +270,7 @@ const App: React.FC = () => {
 
   // --- Product CRUD ---
   const updateProduct = (updatedProduct: Product) => {
+      // Auto-sync variants logic
       if (updatedProduct.variants && updatedProduct.variants.length > 0) {
           const relatedIds = updatedProduct.variants.map(v => v.productId);
           if (!relatedIds.includes(updatedProduct.id)) relatedIds.push(updatedProduct.id);
@@ -306,16 +304,19 @@ const App: React.FC = () => {
   const importProducts = (importedProducts: Product[]) => {
       setProducts(prev => {
           const currentProducts = [...prev];
+          
           importedProducts.forEach(imported => {
               const existingIndex = currentProducts.findIndex(p => 
                   p.sku.toLowerCase() === imported.sku.toLowerCase()
               );
+              
               if (existingIndex >= 0) {
                   currentProducts[existingIndex] = { ...imported, id: currentProducts[existingIndex].id };
               } else {
                   currentProducts.push(imported);
               }
           });
+          
           return currentProducts;
       });
   };
@@ -355,7 +356,7 @@ const App: React.FC = () => {
 
   // --- Data Management ---
   const resetDatabase = () => {
-      if (window.confirm(t.admin?.actions?.resetDbConfirm)) {
+      if (window.confirm("Вы уверены, что хотите сбросить базу данных до начальных демо-товаров? Все ваши изменения будут потеряны.")) {
           setProducts(mockProducts);
           setCategories(mockCategories);
           localStorage.removeItem('db_products');
@@ -366,18 +367,18 @@ const App: React.FC = () => {
   };
   
   const deleteAllProducts = () => {
-      if (window.confirm(t.admin?.actions?.deleteAllConfirm)) {
+      if (window.confirm("ВНИМАНИЕ: Это удалит ВСЕ товары из базы данных. Вы уверены?")) {
           setProducts([]);
       }
   };
 
   const restoreDatabase = (data: any) => {
     if (!data || typeof data !== 'object') {
-        alert("Неверный формат файла.");
+        alert("Неверный формат файла бэкапа.");
         return;
     }
     
-    if (window.confirm(t.admin?.actions?.restoreConfirm)) {
+    if (window.confirm("ВНИМАНИЕ: Это действие полностью заменит текущую базу данных (товары, категории, настройки) данными из файла. Текущие данные будут потеряны. Продолжить?")) {
         try {
             if (Array.isArray(data.products)) setProducts(data.products);
             if (Array.isArray(data.categories)) setCategories(data.categories);
@@ -385,10 +386,10 @@ const App: React.FC = () => {
             if (Array.isArray(data.stickers)) setStickers(data.stickers);
             if (data.stats) setStats(data.stats);
             
-            alert(t.admin?.messages?.restoreSuccess);
+            alert("База данных успешно восстановлена!");
         } catch (e) {
             console.error("Restore error", e);
-            alert(t.admin?.messages?.restoreError);
+            alert("Ошибка при восстановлении данных.");
         }
     }
   };
@@ -405,7 +406,8 @@ const App: React.FC = () => {
     setCurrentScreen(Screen.START);
   };
 
-  // Filter logic
+  // Filter logic: Category + Search + Status + SORTING
+  // Helper to find all subcategory IDs for a given category ID
   const getCategoryIdsIncludingChildren = (rootId: number): number[] => {
       const result = [rootId];
       const children = categories.filter(c => c.parentId === rootId);
@@ -415,10 +417,13 @@ const App: React.FC = () => {
       return result;
   };
 
+  // Helper for sorting prices/discounts
   const getEffectivePrice = (p: Product) => p.specialPrice ?? p.price;
   const getDiscountAmount = (p: Product) => p.specialPrice ? (p.price - p.specialPrice) : 0;
 
+  // FILTER LOGIC FOR CATALOG VIEW
   const getFilteredProducts = () => {
+    // If searching, ignore category strictness, just search everywhere
     if (searchQuery.trim().length > 0) {
         return products.filter(p => 
             (p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -427,15 +432,24 @@ const App: React.FC = () => {
         );
     }
 
+    // If in root category (selectedCategory === null)
+    // User wants tile navigation, so typically we don't show products in ROOT
+    // unless they are specifically assigned to root (unlikely) or we want "All products".
+    // But per request "Categories as tiles", we focus on categories in root.
     if (selectedCategory === null) {
+        // You might want to show "Featured" or nothing here, allowing user to pick a category.
+        // Let's show nothing (or featured) to keep UI clean for categories.
         return []; 
     }
 
+    // If inside a category
     return products.filter(p => {
         if (storeSettings.showProductsFromSubcategories) {
+             // Recursive
              const allowedIds = getCategoryIdsIncludingChildren(selectedCategory);
              return allowedIds.includes(p.categoryId) && p.status;
         } else {
+             // Strict
              return p.categoryId === selectedCategory && p.status;
         }
     });
@@ -458,9 +472,8 @@ const App: React.FC = () => {
 
   const favoriteProducts = products.filter(p => favorites.includes(p.id) && p.status);
 
-  // --- Screens Renderers (Start, Catalog, Details, etc.) ---
-  // Keeping the exact same UI logic as before, just injecting the dynamic data
-  
+  // --- Screens ---
+
   const renderStartScreen = () => (
     <div className="flex flex-col items-center justify-center h-full p-6 text-center bg-gradient-to-b from-blue-50 to-gray-200 dark:from-[#17212b] dark:to-[#0e1621] relative transition-colors duration-300">
       
@@ -482,25 +495,19 @@ const App: React.FC = () => {
       <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">{storeSettings.name}</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8 text-lg transition-colors">{storeSettings.description}</p>
       
-      {isDbLoaded && (
-          <span className="absolute bottom-20 text-[10px] text-green-600 bg-green-100 px-2 py-1 rounded-full">
-              ● Online DB Loaded
-          </span>
-      )}
-
       <button 
         onClick={() => handleTabChange(Screen.CATALOG)}
         className="w-full max-w-xs bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-2xl shadow-lg transition-all transform hover:scale-105 mb-4 flex items-center justify-center"
       >
         <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-        {t.start.catalogButton}
+        Перейти в каталог
       </button>
       
       <button 
         onClick={() => handleTabChange(Screen.CONSULTATION)}
         className="w-full max-w-xs bg-white dark:bg-[#2b343f] hover:bg-gray-100 dark:hover:bg-[#35404d] text-blue-500 dark:text-blue-400 font-bold py-4 px-6 rounded-2xl shadow-lg transition-all border border-gray-200 dark:border-gray-700 mb-8"
       >
-        {t.start.consultationButton}
+        Запросить консультацию
       </button>
 
       {isAdmin ? (
@@ -509,7 +516,7 @@ const App: React.FC = () => {
           className="w-full max-w-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-green-400 font-bold py-3 px-6 rounded-2xl shadow-lg transition-all border border-gray-300 dark:border-gray-600 flex items-center justify-center mt-auto pb-4"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-          {t.start.adminButton}
+          Панель администратора
         </button>
       ) : (
         <button 
@@ -517,17 +524,18 @@ const App: React.FC = () => {
           className="text-xs text-gray-500 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 flex items-center justify-center mt-auto pb-4 opacity-50 hover:opacity-100 transition-opacity"
         >
           <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-          {t.start.adminLogin}
+          Администратор
         </button>
       )}
     </div>
   );
 
-  // ... [Rest of renderCatalog, renderProductDetails, renderConsultation, etc. is identical]
-  // To save XML tokens, I am implying the other render functions are unchanged from the original file
-  // but I must include them in the full content replacement.
-
   const renderCatalog = () => {
+    // Determine visible categories for the Tiled Navigation
+    // If searching, we hide categories.
+    // If not searching:
+    //    If selectedCategory is NULL -> Show Root Categories (parentId is null)
+    //    If selectedCategory is SET -> Show Subcategories (parentId === selectedCategory)
     const visibleCategories = searchQuery.trim().length > 0 
         ? [] 
         : categories
@@ -559,7 +567,7 @@ const App: React.FC = () => {
                          </button>
                     )}
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors">
-                        {selectedCategory !== null ? currentCategoryObj?.name : t.catalog.title}
+                        {selectedCategory !== null ? currentCategoryObj?.name : 'Каталог'}
                     </h2>
                 </div>
                 
@@ -590,7 +598,7 @@ const App: React.FC = () => {
                 <div className="relative flex-1">
                     <input 
                         type="text" 
-                        placeholder={t.catalog.searchPlaceholder} 
+                        placeholder="Поиск..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full bg-gray-100 dark:bg-[#0e1621] text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-blue-500 transition-colors placeholder-gray-500 dark:placeholder-gray-500"
@@ -608,13 +616,13 @@ const App: React.FC = () => {
             {/* Sort Menu Overlay */}
             {isSortMenuOpen && (
                 <div className="absolute top-[130px] right-4 z-50 bg-white dark:bg-[#242d37] border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl w-64 p-2 animate-fade-in">
-                    <div className="text-xs text-gray-500 font-bold px-3 py-2">{t.catalog.sort.title}</div>
+                    <div className="text-xs text-gray-500 font-bold px-3 py-2">Сортировка</div>
                     {[
-                        { id: SortOption.DEFAULT, label: t.catalog.sort.default },
-                        { id: SortOption.PRICE_ASC, label: t.catalog.sort.priceAsc },
-                        { id: SortOption.PRICE_DESC, label: t.catalog.sort.priceDesc },
-                        { id: SortOption.DISCOUNT_DESC, label: t.catalog.sort.discountDesc },
-                        { id: SortOption.DISCOUNT_ASC, label: t.catalog.sort.discountAsc },
+                        { id: SortOption.DEFAULT, label: 'По умолчанию' },
+                        { id: SortOption.PRICE_ASC, label: 'Сначала дешевые' },
+                        { id: SortOption.PRICE_DESC, label: 'Сначала дорогие' },
+                        { id: SortOption.DISCOUNT_DESC, label: 'Сначала с большой скидкой' },
+                        { id: SortOption.DISCOUNT_ASC, label: 'Сначала с меньшей скидкой' },
                     ].map((opt) => (
                         <button
                             key={opt.id}
@@ -660,7 +668,7 @@ const App: React.FC = () => {
             {filteredProducts.length > 0 && (
                 <>
                     {visibleCategories.length > 0 && (
-                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">{t.catalog.productsTitle}</h3>
+                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Товары</h3>
                     )}
                     <div className="grid grid-cols-2 gap-4 pb-20">
                         {filteredProducts.map(product => (
@@ -674,9 +682,9 @@ const App: React.FC = () => {
             {filteredProducts.length === 0 && visibleCategories.length === 0 && (
                  <div className="col-span-2 text-center text-gray-500 mt-10">
                      <svg className="w-16 h-16 mx-auto mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                     <p>{t.catalog.nothingFound}</p>
+                     <p>Ничего не найдено 😔</p>
                      {selectedCategory !== null && !searchQuery && (
-                         <p className="text-xs mt-2">{t.catalog.emptyCategory}</p>
+                         <p className="text-xs mt-2">В этой категории пока нет товаров</p>
                      )}
                  </div>
             )}
@@ -689,6 +697,7 @@ const App: React.FC = () => {
     if (!selectedProduct) return null;
     const isFav = favorites.includes(selectedProduct.id);
 
+    // Calculate Bundle Price & Stock Dynamically if it's a bundle
     let displayPrice = selectedProduct.price;
     let displaySpecialPrice = selectedProduct.specialPrice;
     let displayStock = selectedProduct.stock;
@@ -696,6 +705,7 @@ const App: React.FC = () => {
     if (selectedProduct.isBundle && selectedProduct.bundleItems && selectedProduct.bundleItems.length > 0) {
         let calculatedPrice = 0;
         let minStock = 999999;
+        
         selectedProduct.bundleItems.forEach(itemId => {
             const item = products.find(p => p.id === itemId);
             if (item) {
@@ -703,21 +713,43 @@ const App: React.FC = () => {
                 if (item.stock < minStock) minStock = item.stock;
             }
         });
+        
         displayPrice = calculatedPrice;
-        displaySpecialPrice = undefined;
+        displaySpecialPrice = undefined; // Bundles typically show the sum, special pricing would need separate logic
         displayStock = minStock === 999999 ? 0 : minStock;
     }
+
+    // --- Variant Switching Logic ---
     
     const handleVariantSwitch = (labelIndex: number, selectedValue: string) => {
         if (!selectedProduct.variants) return;
+
+        // Get current values of the product
         const currentValues = selectedProduct.variantValues || [];
+        
+        // Construct target vector: Copy current values, but update the one user clicked
         const targetValues = [...currentValues];
         targetValues[labelIndex] = selectedValue;
-        let bestMatch = selectedProduct.variants.find(v => v.values.every((val, idx) => val === targetValues[idx]));
-        if (!bestMatch) bestMatch = selectedProduct.variants.find(v => v.values[labelIndex] === selectedValue);
+
+        // Find product that matches BOTH (or ALL) criteria if possible
+        // e.g. if I am on [Red, XL] and click "Blue", I want [Blue, XL].
+        
+        let bestMatch = selectedProduct.variants.find(v => {
+            // Check strict equality for all dimensions
+            return v.values.every((val, idx) => val === targetValues[idx]);
+        });
+
+        // If no exact match (e.g. [Blue, XL] doesn't exist), try to find ANY product with the selected value for this dimension
+        // e.g. Just find any [Blue, *]
+        if (!bestMatch) {
+            bestMatch = selectedProduct.variants.find(v => v.values[labelIndex] === selectedValue);
+        }
+
         if (bestMatch) {
             const targetProduct = products.find(p => p.id === bestMatch?.productId);
-            if (targetProduct) handleProductClick(targetProduct);
+            if (targetProduct) {
+                handleProductClick(targetProduct);
+            }
         }
     };
 
@@ -730,6 +762,7 @@ const App: React.FC = () => {
              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
 
+        {/* Gallery */}
         <div className="w-full bg-gray-200 dark:bg-gray-800 relative">
              <ProductGallery images={selectedProduct.images && selectedProduct.images.length > 0 ? selectedProduct.images : [selectedProduct.image]} alt={selectedProduct.name} />
         </div>
@@ -759,7 +792,7 @@ const App: React.FC = () => {
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight mb-1">{selectedProduct.name}</h1>
                     {storeSettings.showSku && (
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">{t.product.sku}: {selectedProduct.sku}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">Артикул: {selectedProduct.sku}</p>
                     )}
                 </div>
                 <div className="text-right">
@@ -777,14 +810,14 @@ const App: React.FC = () => {
             <div className="flex items-center mb-6">
                  <div className={`w-2 h-2 rounded-full mr-2 ${displayStock > 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
                  <span className={`text-sm ${displayStock > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                    {displayStock > 0 ? `${t.product.inStock}: ${displayStock}` : t.product.outOfStock}
+                    {displayStock > 0 ? `В наличии: ${displayStock}` : 'Нет в наличии'}
                  </span>
             </div>
 
              {/* --- BUNDLE CONTENTS --- */}
              {selectedProduct.isBundle && selectedProduct.bundleItems && selectedProduct.bundleItems.length > 0 && (
                 <div className="mb-6 bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-800">
-                    <h4 className="text-gray-900 dark:text-white text-sm font-bold mb-3">{t.product.bundleIncludes}</h4>
+                    <h4 className="text-gray-900 dark:text-white text-sm font-bold mb-3">В этот комплект входит:</h4>
                     <div className="space-y-3">
                         {selectedProduct.bundleItems.map(itemId => {
                             const item = products.find(p => p.id === itemId);
@@ -806,19 +839,26 @@ const App: React.FC = () => {
                         })}
                     </div>
                     <div className="mt-3 pt-2 border-t border-purple-200 dark:border-purple-800 flex justify-between items-center text-xs">
-                        <span className="text-gray-600 dark:text-gray-400">{t.product.totalPrice}</span>
+                        <span className="text-gray-600 dark:text-gray-400">Общая стоимость:</span>
                         <span className="font-bold text-gray-900 dark:text-white text-sm">{displayPrice.toLocaleString()} ₽</span>
                     </div>
                 </div>
             )}
             
+            {/* --- VARIANT SELECTOR --- */}
+            {/* Only show variants if NOT a bundle (though bundles could theoretically have variants, keeping it simple) */}
             {!selectedProduct.isBundle && selectedProduct.variants && selectedProduct.variants.length > 0 && selectedProduct.variantLabels && (
                 <div className="mb-6 space-y-4">
                     {selectedProduct.variantLabels.map((label, labelIdx) => {
+                        // Extract unique available values for this specific dimension
+                        // We rely on the `variants` list which contains ALL related products (including self usually)
                         const availableValues = Array.from(new Set(
                             selectedProduct.variants?.map(v => v.values[labelIdx]).filter(Boolean)
                         ));
+                        
+                        // Current selected value for this dimension
                         const currentValue = selectedProduct.variantValues?.[labelIdx];
+
                         if (availableValues.length === 0) return null;
 
                         return (
@@ -850,7 +890,7 @@ const App: React.FC = () => {
 
             {selectedProduct.attributes && selectedProduct.attributes.length > 0 && (
                 <div className="mb-6 bg-gray-100 dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-gray-900 dark:text-white text-sm font-bold mb-2 border-b border-gray-300 dark:border-gray-600 pb-1">{t.product.characteristics}</h4>
+                    <h4 className="text-gray-900 dark:text-white text-sm font-bold mb-2 border-b border-gray-300 dark:border-gray-600 pb-1">Характеристики</h4>
                     <ul className="space-y-1">
                         {selectedProduct.attributes.map((attr, idx) => (
                             <li key={idx} className="flex justify-between text-sm">
@@ -863,18 +903,18 @@ const App: React.FC = () => {
             )}
 
             <div className="prose prose-sm mb-8 max-w-none">
-                <h3 className="text-gray-900 dark:text-white font-semibold mb-2">{t.product.description}</h3>
+                <h3 className="text-gray-900 dark:text-white font-semibold mb-2">Описание</h3>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
                     {selectedProduct.description || "Загрузка описания..."}
                 </p>
             </div>
 
-            {/* --- REAL PHOTOS GALLERY --- */}
+            {/* --- REAL PHOTOS GALLERY (GLOBAL) --- */}
             {storeSettings.realPhotosEnabled && storeSettings.realPhotos && storeSettings.realPhotos.length > 0 && (
                 <div className="mb-8">
                     <h3 className="text-gray-900 dark:text-white font-bold text-lg mb-3 flex items-center">
                         <svg className="w-5 h-5 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        {storeSettings.realPhotosLabel || t.product.realPhotosDefault}
+                        {storeSettings.realPhotosLabel || "Фото от покупателей"}
                     </h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {storeSettings.realPhotos.map((photo, index) => (
@@ -904,7 +944,7 @@ const App: React.FC = () => {
                     onClick={() => handleConsultationRequest(selectedProduct)}
                     className="col-span-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-colors h-14 flex items-center justify-center"
                 >
-                    {t.product.requestInfo}
+                    Запросить информацию
                 </button>
             </div>
         </div>
@@ -914,10 +954,11 @@ const App: React.FC = () => {
 
   const renderConsultation = () => (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-[#0e1621] p-6 overflow-y-auto custom-scrollbar transition-colors">
-       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t.consultation.title}</h2>
+       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Консультация</h2>
 
+       {/* Direct Manager Contact */}
        <div className="mb-8 bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{t.consultation.quickAnswer}</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">Нужен быстрый ответ?</p>
           <a 
             href={storeSettings.managerContact}
             target="_blank" 
@@ -925,25 +966,25 @@ const App: React.FC = () => {
             className="flex items-center justify-center w-full bg-gray-100 dark:bg-[#242d37] hover:bg-gray-200 dark:hover:bg-[#2f3a49] text-blue-500 dark:text-blue-400 font-bold py-3 rounded-xl border border-blue-500/30 transition-colors"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-            {t.consultation.writeToManager}
+            Написать менеджеру
           </a>
        </div>
 
-       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">{t.consultation.orLeaveRequest}</h3>
+       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">Или оставьте заявку</h3>
        <form onSubmit={submitConsultation} className="flex flex-col space-y-4 pb-20">
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.consultation.nameLabel}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Ваше имя</label>
               <input 
                 required
                 type="text"
                 className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
                 value={consultationForm.name}
                 onChange={e => setConsultationForm({...consultationForm, name: e.target.value})}
-                placeholder={t.consultation.namePlaceholder}
+                placeholder="Иван Иванов"
               />
           </div>
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.consultation.phoneLabel}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Телефон</label>
               <input 
                 required
                 type="tel"
@@ -954,18 +995,18 @@ const App: React.FC = () => {
               />
           </div>
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.consultation.questionLabel}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Ваш вопрос</label>
               <textarea 
                 required
                 rows={5}
                 className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none resize-none transition-colors"
                 value={consultationForm.question}
                 onChange={e => setConsultationForm({...consultationForm, question: e.target.value})}
-                placeholder={t.consultation.questionPlaceholder}
+                placeholder="Опишите, что вас интересует..."
               />
           </div>
           <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg mt-4">
-              {t.consultation.submitButton}
+              Отправить запрос
           </button>
        </form>
     </div>
@@ -976,13 +1017,13 @@ const App: React.FC = () => {
         <div className="w-20 h-20 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center mb-6">
             <svg className="w-10 h-10 text-green-600 dark:text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t.consultation.successTitle}</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-8">{t.consultation.successMessage}</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Заявка принята!</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-8">Мы свяжемся с вами в течение 24 часов для уточнения деталей.</p>
         <button 
             onClick={() => handleTabChange(Screen.CATALOG)}
             className="bg-gray-100 dark:bg-[#2b343f] hover:bg-gray-200 dark:hover:bg-[#35404d] text-gray-900 dark:text-white font-bold py-3 px-8 rounded-xl border border-gray-300 dark:border-gray-700 transition-colors"
         >
-            {t.consultation.backToCatalog}
+            Вернуться в каталог
         </button>
     </div>
   );
@@ -990,7 +1031,7 @@ const App: React.FC = () => {
   const renderFavorites = () => (
       <div className="flex flex-col h-full bg-gray-50 dark:bg-[#0e1621] transition-colors">
           <div className="p-4 bg-white dark:bg-[#17212b] border-b border-gray-200 dark:border-gray-700 transition-colors">
-             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t.favorites.title} ({favoriteProducts.length})</h2>
+             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Избранное ({favoriteProducts.length})</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
             {favoriteProducts.length > 0 ? (
@@ -1002,7 +1043,7 @@ const App: React.FC = () => {
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 pb-20">
                     <svg className="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-                    <p>{t.favorites.empty}</p>
+                    <p>В избранном пока пусто</p>
                 </div>
             )}
           </div>
@@ -1058,23 +1099,17 @@ const App: React.FC = () => {
            && currentScreen !== Screen.ADMIN_DASHBOARD;
   };
 
-  // If running in Telegram, we want full width and no border/shadow simulation
-  // If running in Browser (default), we keep the mobile simulation frame
-  const containerClasses = isTelegram 
-     ? "relative flex flex-col w-full h-screen bg-gray-50 dark:bg-[#0e1621] overflow-hidden transition-colors duration-300"
-     : "relative flex flex-col w-full h-[100vh] md:h-[95vh] md:w-[400px] bg-gray-50 dark:bg-[#0e1621] md:rounded-3xl shadow-2xl overflow-hidden md:border border-gray-300 dark:border-gray-700 transition-colors duration-300";
-
   return (
     <div className={isDarkMode ? 'dark' : ''}>
-        <div className={`flex justify-center items-center min-h-screen ${isTelegram ? 'bg-gray-50 dark:bg-[#0e1621]' : 'bg-gray-200 dark:bg-gray-900'} font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300`}>
-        <div className={containerClasses}>
+        <div className="flex justify-center items-center min-h-screen bg-gray-200 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        <div className="relative flex flex-col w-full h-[100vh] md:h-[95vh] md:w-[400px] bg-gray-50 dark:bg-[#0e1621] md:rounded-3xl shadow-2xl overflow-hidden md:border border-gray-300 dark:border-gray-700 transition-colors duration-300">
             
             <main className="flex-1 overflow-hidden relative">
             {renderMainContent()}
             </main>
 
             {shouldShowBottomNav() && (
-            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} language={storeSettings.language} />
+            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
             )}
 
             {/* Lightbox Overlay */}

@@ -1,7 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, Category, ProductVariant, Sticker } from '../types';
-import { TRANSLATIONS } from '../constants';
 
 interface AdminPanelProps {
   products: Product[];
@@ -16,7 +15,6 @@ interface AdminPanelProps {
       realPhotosLabel: string;
       realPhotos: string[];
       showProductsFromSubcategories: boolean;
-      language: 'ru' | 'en';
   };
   stickers: Sticker[];
   stats: {
@@ -102,10 +100,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Product Form Helper State for Split Category Selection
   const [formParentCategory, setFormParentCategory] = useState<number | 'root'>('root');
 
-  // Use localSettings.language for immediate UI feedback
-  const currentLang = localSettings.language || 'ru';
-  const t = TRANSLATIONS[currentLang]?.admin || TRANSLATIONS.ru.admin!;
-
   useEffect(() => {
       setLocalSettings(storeSettings);
   }, [storeSettings]);
@@ -176,30 +170,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTimeout(() => setToast(null), 3000);
   };
 
-  // Calculate product count recursively
-  const countProductsInTree = (catId: number): number => {
-    let count = products.filter(p => p.categoryId === catId).length;
-    const children = categories.filter(c => c.parentId === catId);
-    children.forEach(c => {
-        count += countProductsInTree(c.id);
-    });
-    return count;
-  };
-
   // --- Auth ---
   const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.replace(/\D/g, '') === ADMIN_PHONE) {
+    if (phone.replace(/\D/g, '').includes(ADMIN_PHONE)) {
         onLoginSuccess();
     } else {
-        showToastMessage(t.messages.loginError, 'error');
+        showToastMessage('Неверный номер телефона', 'error');
     }
   };
 
   // --- Generic Helpers ---
   const processFile = (file: File, callback: (base64: string) => void) => {
       if (!file.type.startsWith('image/')) {
-          showToastMessage(t.messages.uploadImage, 'error');
+          showToastMessage('Пожалуйста, загрузите изображение.', 'error');
           return;
       }
       const reader = new FileReader();
@@ -209,9 +193,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       reader.readAsDataURL(file);
   };
 
-  // --- BACKUP / RESTORE Logic (db.json) ---
-  const handleDownloadDB = () => {
+  // --- BACKUP / RESTORE Logic ---
+  const handleBackup = () => {
       const backup = {
+          version: 1,
+          timestamp: Date.now(),
           products,
           categories,
           settings: storeSettings,
@@ -222,12 +208,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      // IMPORTANT: Named db.json for static loading
-      link.setAttribute("download", "db.json");
+      link.setAttribute("download", `store_backup_${Date.now()}.json`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToastMessage("db.json скачан! Загрузите его в корень сайта.");
+      showToastMessage('Бэкап базы данных успешно скачан');
   };
 
   const handleRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,7 +227,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             const data = JSON.parse(text);
             onRestoreDatabase(data);
           } catch (e) {
-              showToastMessage(t.messages.backupError, "error");
+              showToastMessage("Ошибка чтения файла бэкапа", "error");
           } finally {
               if (restoreInputRef.current) restoreInputRef.current.value = '';
           }
@@ -294,7 +279,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToastMessage(t.messages.exportSuccess);
+      showToastMessage('Экспорт успешно завершен');
   };
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -359,9 +344,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           if (newProducts.length > 0) {
               onImportProducts(newProducts);
-              showToastMessage(`${t.messages.productsProcessed} ${newProducts.length}`);
+              showToastMessage(`Обработано ${newProducts.length} товаров`);
           } else {
-              showToastMessage(t.messages.readError, 'error');
+              showToastMessage('Не удалось прочитать товары', 'error');
           }
           setIsImporting(false);
           setShowImportModal(false);
@@ -377,9 +362,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleProductDelete = (id: number) => {
-      if (window.confirm(t.actions.confirmDelete)) {
+      if (window.confirm('Вы уверены, что хотите удалить этот товар навсегда?')) {
           onDeleteProduct(id);
-          showToastMessage(t.messages.productDeleted);
+          showToastMessage('Товар удален');
       }
   };
 
@@ -434,7 +419,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleAddProductSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (!newProduct.name) return;
-      if (!newProduct.mainImage) { showToastMessage(t.messages.photoRequired, "error"); return; }
+      if (!newProduct.mainImage) { showToastMessage("Добавьте фото товара", "error"); return; }
 
       let price = parseInt(newProduct.price) || 0;
       let stock = parseInt(newProduct.stock) || 0;
@@ -517,10 +502,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       if (editingId) {
           onUpdateProduct(productData);
-          showToastMessage(t.messages.productUpdated);
+          showToastMessage('Товар обновлен');
       } else {
           onAddProducts([productData]);
-          showToastMessage(t.messages.productAdded);
+          showToastMessage('Товар добавлен');
       }
 
       setShowAddModal(false);
@@ -669,7 +654,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   
   const addSelfToVariants = () => {
       if (!editingId) {
-          alert(t.messages.saveFirst);
+          alert("Сначала сохраните товар, чтобы добавить его в варианты.");
           return;
       }
       // Only add if not exists
@@ -689,7 +674,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       onUpdateCategory(updated);
   };
 
-  // Drag and Drop Handlers
+  // Drag and Drop Handlers (Keep as is...)
   const handleDragStart = (e: React.DragEvent, id: number) => {
       setDraggedItemId(id);
       e.dataTransfer.setData('text/plain', id.toString());
@@ -722,7 +707,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       });
       if (updates.length > 0) {
           onUpdateCategories(updates);
-          showToastMessage(t.messages.categoryOrderUpdated);
+          showToastMessage('Порядок категорий обновлен');
       }
       setDraggedItemId(null);
   };
@@ -748,9 +733,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleCategoryDelete = (id: number) => {
-      if (window.confirm(t.actions.deleteCategoryConfirm)) {
+      if (window.confirm('Удалить категорию? Вложенные категории переместятся в корень.')) {
           onDeleteCategory(id);
-          showToastMessage(t.messages.categoryDeleted);
+          showToastMessage('Категория удалена');
       }
   };
 
@@ -769,10 +754,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       };
       if (editingId) {
           onUpdateCategory(categoryData);
-          showToastMessage(t.messages.categoryUpdated);
+          showToastMessage('Категория обновлена');
       } else {
           onAddCategory(categoryData);
-          showToastMessage(t.messages.categoryCreated);
+          showToastMessage('Категория создана');
       }
       setShowAddCategoryModal(false);
   };
@@ -801,11 +786,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       };
       onUpdateStickers([...stickers, sticker]);
       setNewSticker({ name: '', bgColor: '#3b82f6', textColor: '#ffffff' });
-      showToastMessage(t.messages.stickerCreated);
+      showToastMessage('Стикер создан');
   };
 
   const handleDeleteSticker = (id: string) => {
-      if (window.confirm(t.actions.deleteStickerConfirm)) {
+      if (window.confirm('Удалить стикер?')) {
           onUpdateStickers(stickers.filter(s => s.id !== id));
       }
   };
@@ -814,7 +799,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSettingsSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       onUpdateStoreSettings(localSettings);
-      showToastMessage(t.messages.settingsSaved);
+      showToastMessage('Настройки успешно сохранены!');
   };
   
   const handleLogoDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -879,14 +864,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <h4 className="text-gray-900 dark:text-white font-medium text-sm">{cat.name}</h4>
                         <span className="text-[10px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">#{cat.sortOrder}</span>
                       </div>
-                      <div className="text-[10px] text-gray-500">{countProductsInTree(cat.id)} {t.products.productsCountSuffix}</div>
+                      <div className="text-[10px] text-gray-500">{products.filter(p => p.categoryId === cat.id).length} товаров</div>
                   </div>
                   <div className="flex items-center space-x-1">
                        <button 
                           onClick={() => toggleCategoryStatus(cat)} 
                           className={`text-[10px] px-2 py-1 rounded font-bold transition-colors mr-2 ${cat.status !== false ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
                        >
-                          {cat.status !== false ? t.common.on : t.common.off}
+                          {cat.status !== false ? 'ON' : 'OFF'}
                        </button>
                       <button onClick={() => handleEditCategoryClick(cat)} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -904,50 +889,44 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const renderSettings = () => (
       <form onSubmit={handleSettingsSubmit} className="space-y-6 p-2">
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.settings.storeName}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Название магазина</label>
               <input type="text" value={localSettings.name} onChange={e => setLocalSettings({...localSettings, name: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white" />
           </div>
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.settings.description}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Описание</label>
               <textarea rows={3} value={localSettings.description} onChange={e => setLocalSettings({...localSettings, description: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white resize-none" />
           </div>
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.settings.managerContact}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Контакты менеджера</label>
               <input type="text" value={localSettings.managerContact} onChange={e => setLocalSettings({...localSettings, managerContact: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white font-mono text-sm" />
           </div>
           <div>
-              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">{t.settings.logo}</label>
+              <label className="block text-gray-600 dark:text-gray-400 text-sm mb-2">Логотип</label>
               <div className="flex gap-4 items-start">
                    <div onDrop={handleLogoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => logoInputRef.current?.click()} className="w-32 h-32 bg-white dark:bg-[#17212b] border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors overflow-hidden flex-shrink-0">
                        {localSettings.logoUrl ? <img src={localSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-500">Logo</span>}
                        <input type="file" ref={logoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, logoUrl: res})))} className="hidden" accept="image/*" />
                    </div>
                    <div className="flex-1">
-                       <input type="text" value={localSettings.logoUrl} onChange={e => setLocalSettings({...localSettings, logoUrl: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white text-sm mb-2" placeholder="URL..." />
+                       <input type="text" value={localSettings.logoUrl} onChange={e => setLocalSettings({...localSettings, logoUrl: e.target.value})} className="w-full bg-white dark:bg-[#17212b] border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white text-sm mb-2" placeholder="URL изображения..." />
                    </div>
               </div>
           </div>
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all">{t.settings.saveButton}</button>
+              <button type="submit" className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all">Сохранить настройки</button>
           </div>
 
-          {/* Backup / Static DB Section */}
+          {/* Backup Section */}
           <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Статическая База Данных (db.json)</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                 1. Внесите изменения.<br/>
-                 2. Нажмите "Скачать db.json".<br/>
-                 3. Загрузите этот файл в корень вашего сайта (хостинг).<br/>
-                 После этого изменения увидят все пользователи.
-              </p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Резервное копирование</h3>
               <div className="flex gap-4">
                   <button 
                       type="button"
-                      onClick={handleDownloadDB}
+                      onClick={handleBackup}
                       className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow transition-colors flex items-center justify-center"
                   >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                      Скачать db.json
+                      Скачать бэкап
                   </button>
                   <button 
                       type="button"
@@ -955,7 +934,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-3 rounded-xl shadow transition-colors flex items-center justify-center"
                   >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                      Загрузить (Локально)
+                      Восстановить
                   </button>
                   <input 
                       type="file" 
@@ -965,43 +944,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       accept=".json" 
                   />
               </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Скачивает полный архив базы данных (товары, категории, настройки, стикеры) в JSON формате.
+              </p>
           </div>
       </form>
   );
 
-  // ... [Rest of renderStatistics, renderInterface same as original but keeping context]
-  // Shortened here for XML limit but included full logic in actual file content below
-  
   const renderStatistics = () => (
       <div className="p-2 space-y-4">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t.statistics.title}</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Общая статистика магазина</h3>
           
           <div className="grid grid-cols-2 gap-4">
               <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t.statistics.totalProducts}</div>
+                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Всего товаров</div>
                   <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{products.length}</div>
               </div>
               
               <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t.statistics.totalCategories}</div>
+                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Категорий</div>
                   <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">{categories.length}</div>
               </div>
 
               <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t.statistics.favoritesAdds}</div>
+                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Добавлений в избранное</div>
                   <div className="text-3xl font-bold text-red-500 dark:text-red-400">{stats.favoritesCount}</div>
-                  <div className="text-[10px] text-gray-400 mt-1">{t.statistics.favoritesHint}</div>
+                  <div className="text-[10px] text-gray-400 mt-1">Суммарно за все время</div>
               </div>
 
               <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">{t.statistics.clientRequests}</div>
+                  <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Обращений клиентов</div>
                   <div className="text-3xl font-bold text-green-600 dark:text-green-400">{stats.consultationsCount}</div>
-                  <div className="text-[10px] text-gray-400 mt-1">{t.statistics.requestsHint}</div>
+                  <div className="text-[10px] text-gray-400 mt-1">Заявок на консультацию</div>
               </div>
           </div>
           
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-xs text-gray-600 dark:text-gray-300 mt-4">
-              <p>{t.statistics.note}</p>
+              <p>Примечание: Статистика активности (избранное, обращения) сохраняется локально в этом браузере. При очистке данных или сбросе базы счетчики могут обнулиться.</p>
           </div>
       </div>
   );
@@ -1009,27 +988,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const renderInterface = () => (
       <div className="p-2 space-y-6">
            <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t.interface.displayTitle}</h3>
-
-                <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-                    <div>
-                        <div className="text-gray-900 dark:text-white font-medium">{t.interface.languageLabel}</div>
-                        <div className="text-xs text-gray-500">{t.interface.languageHint}</div>
-                    </div>
-                    <select 
-                        value={localSettings.language || 'ru'}
-                        onChange={(e) => setLocalSettings({...localSettings, language: e.target.value as 'ru' | 'en'})}
-                        className="bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                        <option value="ru">Русский</option>
-                        <option value="en">English</option>
-                    </select>
-                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Отображение</h3>
                 
                 <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                     <div>
-                        <div className="text-gray-900 dark:text-white font-medium">{t.interface.showSkuLabel}</div>
-                        <div className="text-xs text-gray-500">{t.interface.showSkuHint}</div>
+                        <div className="text-gray-900 dark:text-white font-medium">Показывать Артикул (SKU)</div>
+                        <div className="text-xs text-gray-500">Отображает код товара на странице просмотра</div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input 
@@ -1044,9 +1008,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 <div className="flex items-center justify-between py-2">
                     <div>
-                        <div className="text-gray-900 dark:text-white font-medium">{t.interface.showSubcatLabel}</div>
+                        <div className="text-gray-900 dark:text-white font-medium">Показывать товары из подкатегорий</div>
                         <div className="text-xs text-gray-500 max-w-[200px]">
-                            {t.interface.showSubcatHint}
+                            Если включено, в родительской категории видны товары всех вложенных категорий
                         </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -1060,479 +1024,673 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </label>
                 </div>
            </div>
-           
-           {/* ... Stickers & Real Photos (keeping original logic) ... */}
-           
+
+            {/* Real Photos Management */}
+           <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Галерея реальных фото</h3>
+                
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-gray-900 dark:text-white font-medium text-sm">Включить галерею</div>
+                            <div className="text-xs text-gray-500">Отображается в каждом товаре</div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={localSettings.realPhotosEnabled || false} 
+                                onChange={(e) => setLocalSettings(prev => ({...prev, realPhotosEnabled: e.target.checked}))}
+                                className="sr-only peer" 
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <div>
+                         <label className="block text-xs text-gray-500 mb-1">Заголовок блока</label>
+                         <input 
+                            type="text" 
+                            value={localSettings.realPhotosLabel || ''}
+                            onChange={(e) => setLocalSettings({...localSettings, realPhotosLabel: e.target.value})}
+                            placeholder="Например: Фото от покупателей"
+                            className="w-full bg-gray-50 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm text-gray-900 dark:text-white"
+                         />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1">Загрузить фото</label>
+                        <div onDrop={handleRealPhotoDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => realPhotoInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#242d37] cursor-pointer hover:border-blue-500 transition-colors">
+                            <span className="text-gray-500 text-xs">Нажмите или перетащите сюда фото</span>
+                            <input type="file" ref={realPhotoInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setLocalSettings(s => ({...s, realPhotos: [...(s.realPhotos || []), res]})))} className="hidden" accept="image/*" />
+                        </div>
+                    </div>
+
+                    {/* Grid of photos */}
+                    {localSettings.realPhotos && localSettings.realPhotos.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2 mt-2">
+                            {localSettings.realPhotos.map((photo, idx) => (
+                                <div key={idx} className="relative aspect-square group">
+                                    <img src={photo} className="w-full h-full object-cover rounded border border-gray-200 dark:border-gray-600" />
+                                    <button 
+                                        onClick={() => handleRemoveRealPhoto(idx)}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+           </div>
+
+           <div className="bg-white dark:bg-[#17212b] p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Управление стикерами</h3>
+                
+                {/* New Sticker Form */}
+                <form onSubmit={handleAddSticker} className="flex gap-2 mb-6 p-3 bg-gray-50 dark:bg-[#242d37] rounded-lg items-end">
+                    <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">Название</label>
+                        <input 
+                            type="text" 
+                            required
+                            placeholder="Например: TOP"
+                            value={newSticker.name} 
+                            onChange={e => setNewSticker({...newSticker, name: e.target.value})}
+                            className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded px-2 py-2 text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs text-gray-500 mb-1">Цвет</label>
+                        <input 
+                            type="color" 
+                            value={newSticker.bgColor}
+                            onChange={e => setNewSticker({...newSticker, bgColor: e.target.value})}
+                            className="h-9 w-16 rounded cursor-pointer"
+                        />
+                    </div>
+                    <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold h-9 flex items-center">
+                        +
+                    </button>
+                </form>
+
+                {/* List */}
+                <div className="space-y-2">
+                    {stickers.map(sticker => (
+                        <div key={sticker.id} className="flex items-center justify-between bg-gray-50 dark:bg-[#242d37] p-2 rounded border border-gray-200 dark:border-gray-600">
+                            <div className="flex items-center gap-3">
+                                <span 
+                                    className="px-2 py-1 rounded text-xs font-bold uppercase"
+                                    style={{ backgroundColor: sticker.bgColor, color: sticker.textColor }}
+                                >
+                                    {sticker.name}
+                                </span>
+                            </div>
+                            <button 
+                                onClick={() => handleDeleteSticker(sticker.id)}
+                                className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 p-1 rounded"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+           </div>
+
            <div className="pt-4">
               <button 
-                 onClick={handleSettingsSubmit} 
-                 className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all"
+                onClick={handleSettingsSubmit}
+                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all"
               >
-                  {t.interface.saveInterfaceButton}
+                  Сохранить настройки интерфейса
               </button>
-           </div>
+          </div>
       </div>
   );
+  
+  const filteredAdminProducts = filterCategoryId ? products.filter(p => p.categoryId === filterCategoryId) : products;
 
-  // --- LOGIN SCREEN ---
+  // --- Render ---
+
   if (!isAdmin) {
-      return (
-          <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-[#0e1621] p-6">
-               <h1 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">{t.loginTitle}</h1>
-               <p className="text-gray-500 mb-6">{t.loginSubtitle}</p>
-               <form onSubmit={handlePhoneSubmit} className="w-full max-w-xs space-y-4">
-                   <input 
-                      type="password" 
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="8920..."
-                      className="w-full p-4 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#17212b] text-center text-xl tracking-widest text-gray-900 dark:text-white focus:border-blue-500 outline-none"
-                      autoFocus
-                   />
-                   <button type="submit" className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition-colors">
-                       {t.loginButton}
-                   </button>
-                   <button type="button" onClick={onExit} className="w-full text-gray-400 text-sm hover:text-gray-600">
-                       {t.actions.cancel}
-                   </button>
-               </form>
-               {toast && (
-                   <div className={`mt-4 px-4 py-2 rounded-lg text-sm font-bold animate-bounce ${toast.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                       {toast.message}
-                   </div>
-               )}
-          </div>
-      );
+    return (
+      <div className="flex flex-col h-full bg-white dark:bg-[#0e1621] p-6 overflow-y-auto transition-colors">
+        {toast && <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-2xl flex items-center animate-bounce-in ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}><span className="font-bold">{toast.message}</span></div>}
+        <div className="flex justify-between items-center mb-8">
+             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Panel</h2>
+             <button onClick={onExit} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Закрыть</button>
+        </div>
+        <div className="bg-gray-100 dark:bg-[#17212b] p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl">
+            <div className="mb-6 text-center">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Вход</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Введите номер администратора</p>
+            </div>
+            <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="89203718545" className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-white text-center text-lg" />
+                <button type="submit" className="w-full py-3 rounded-xl font-bold bg-blue-600 text-white">Войти</button>
+            </form>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-100 dark:bg-[#0e1621] transition-colors">
-       {/* Header */}
-       <div className="bg-white dark:bg-[#17212b] p-4 shadow-sm z-10 flex justify-between items-center border-b border-gray-200 dark:border-black">
-           <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t.panelTitle}</h2>
-           <div className="flex gap-2">
-               <button onClick={onExit} className="text-sm text-blue-500 font-medium px-2">{t.toStore}</button>
-               <button onClick={onLogout} className="text-sm text-red-500 font-medium px-2">{t.logout}</button>
-           </div>
-       </div>
+    <div className="flex flex-col h-full bg-white dark:bg-[#0e1621] relative transition-colors">
+        {toast && <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-2xl flex items-center animate-bounce-in ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}><span className="font-bold">{toast.message}</span></div>}
+        
+        {showImportModal && (
+            <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/80 backdrop-blur-sm p-4 flex items-center justify-center">
+                <div className="bg-white dark:bg-[#17212b] w-full max-w-sm rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-2xl">
+                    <h3 className="text-gray-900 dark:text-white font-bold mb-2">Импорт CSV</h3>
+                    <div className="space-y-4">
+                        <input type="file" accept=".csv" ref={importFileRef} onChange={handleImportFile} disabled={isImporting} className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700" />
+                        {isImporting && <p className="text-yellow-500 text-sm animate-pulse">Обработка...</p>}
+                        <div className="flex gap-2 mt-4"><button onClick={() => setShowImportModal(false)} className="flex-1 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600">Закрыть</button></div>
+                    </div>
+                </div>
+            </div>
+        )}
 
-       {/* Tabs */}
-       <div className="flex overflow-x-auto bg-white dark:bg-[#17212b] border-b border-gray-200 dark:border-gray-800 custom-scrollbar">
-           {[
-             { id: 'products', label: t.tabs.products }, 
-             { id: 'categories', label: t.tabs.categories }, 
-             { id: 'settings', label: t.tabs.settings },
-             { id: 'interface', label: t.tabs.interface },
-             { id: 'statistics', label: t.tabs.statistics }
-           ].map(tab => (
-               <button
-                  key={tab.id}
-                  onClick={() => setActiveSection(tab.id as any)}
-                  className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${activeSection === tab.id ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}
-               >
-                   {tab.label}
-               </button>
-           ))}
-       </div>
+        {showAddCategoryModal && (
+            <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/90 backdrop-blur-sm flex flex-col overflow-hidden">
+                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between bg-white dark:bg-[#17212b]">
+                    <h3 className="text-gray-900 dark:text-white font-bold">{editingId ? 'Редактировать категорию' : 'Новая категория'}</h3>
+                    <button onClick={() => setShowAddCategoryModal(false)} className="text-gray-500 dark:text-gray-400">Закрыть</button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4" onPaste={handleCategoryPaste}>
+                    <form onSubmit={handleCategorySubmit} className="space-y-4">
+                        <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Название</label><input required value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white" /></div>
+                        <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Порядок сортировки</label><input type="number" value={newCategory.sortOrder} onChange={e => setNewCategory({...newCategory, sortOrder: parseInt(e.target.value) || 0})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white" /></div>
+                        <div>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Родительская категория</label>
+                            <select value={newCategory.parentId} onChange={e => setNewCategory({...newCategory, parentId: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white">
+                                <option value="">-- Корневая --</option>
+                                {categories.filter(c => c.id !== editingId).map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Изображение</label>
+                             <div onDrop={handleCategoryDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => catFileInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center bg-gray-50 dark:bg-[#17212b] cursor-pointer hover:border-blue-500 transition-colors">
+                                {newCategory.image ? <img src={newCategory.image} className="h-24 mx-auto object-contain" alt="Preview" /> : <span className="text-gray-500 text-xs">Drop image here</span>}
+                                <input type="file" ref={catFileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewCategory(c => ({...c, image: res})))} className="hidden" accept="image/*" />
+                             </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-4">
+                            <div className="flex items-center gap-2"><input type="checkbox" id="showImg" checked={newCategory.showImage} onChange={e => setNewCategory({...newCategory, showImage: e.target.checked})} className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" /><label htmlFor="showImg" className="text-gray-900 dark:text-white text-sm">Показывать картинку</label></div>
+                             <div className="flex items-center gap-2"><input type="checkbox" id="catStatus" checked={newCategory.status} onChange={e => setNewCategory({...newCategory, status: e.target.checked})} className="w-4 h-4 rounded bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" /><label htmlFor="catStatus" className="text-gray-900 dark:text-white text-sm">Активная категория</label></div>
+                        </div>
+                        <button type="submit" className="w-full bg-green-600 py-3 rounded-xl text-white font-bold mt-6">Сохранить</button>
+                    </form>
+                </div>
+            </div>
+        )}
 
-       {/* Content */}
-       <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-           {activeSection === 'products' && (
-               <div className="p-2">
-                   <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-                       <button onClick={handleNewProductClick} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg shadow flex-shrink-0">
-                           {t.actions.addProduct}
-                       </button>
-                       <button onClick={() => setShowImportModal(true)} className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-xs font-bold py-2 px-3 rounded-lg shadow flex-shrink-0">
-                           {t.actions.importCsv}
-                       </button>
-                       <button onClick={handleExport} className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white text-xs font-bold py-2 px-3 rounded-lg shadow flex-shrink-0">
-                           {t.actions.exportCsv}
-                       </button>
-                       <button onClick={onDeleteAll} className="ml-auto bg-red-100 hover:bg-red-200 text-red-600 text-xs font-bold py-2 px-3 rounded-lg shadow flex-shrink-0">
-                           {t.actions.deleteAll}
-                       </button>
-                       <button onClick={onResetDB} className="bg-orange-100 hover:bg-orange-200 text-orange-600 text-xs font-bold py-2 px-3 rounded-lg shadow flex-shrink-0">
-                           {t.actions.resetDb}
-                       </button>
-                   </div>
-                   
-                   {/* Filter */}
-                   <div className="mb-4 px-1">
-                       <select 
-                           value={filterCategoryId || ''} 
-                           onChange={(e) => setFilterCategoryId(e.target.value ? parseInt(e.target.value) : null)}
-                           className="w-full p-2 rounded-lg bg-white dark:bg-[#17212b] border border-gray-200 dark:border-gray-700 text-sm text-gray-900 dark:text-white"
-                       >
-                           <option value="">{t.products.filterAll}</option>
-                           {categories.map(c => (
-                               <option key={c.id} value={c.id}>{c.name}</option>
-                           ))}
-                       </select>
-                   </div>
-                   
-                   <div className="space-y-2 pb-20">
-                       {products
-                           .filter(p => filterCategoryId ? p.categoryId === filterCategoryId : true)
-                           .map(product => (
-                           <div key={product.id} className={`bg-white dark:bg-[#17212b] rounded-xl p-3 shadow-sm flex items-center gap-3 border ${!product.status ? 'opacity-60 border-gray-200 dark:border-gray-800' : 'border-transparent'}`}>
-                               <img src={product.image} alt="" className="w-12 h-12 rounded object-cover bg-gray-100" />
-                               <div className="flex-1 min-w-0">
-                                   <div className="font-bold text-sm text-gray-900 dark:text-white truncate">{product.name}</div>
-                                   <div className="text-xs text-gray-500 flex items-center gap-2">
-                                       <span>{product.sku}</span>
-                                       <span className="text-gray-300">|</span>
-                                       <span>{product.price} ₽</span>
-                                       {product.specialPrice && <span className="text-red-500 font-bold">{product.specialPrice} ₽</span>}
-                                   </div>
-                               </div>
-                               <div className="flex flex-col gap-1">
-                                   <button onClick={() => handleEditProductClick(product)} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100">
-                                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                                   </button>
-                                   <button onClick={() => toggleProductStatus(product)} className={`p-1.5 rounded font-bold text-[10px] ${product.status ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
-                                       {product.status ? t.common.on : t.common.off}
-                                   </button>
-                               </div>
-                               <button onClick={() => handleProductDelete(product.id)} className="p-1.5 text-gray-400 hover:text-red-500">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                </button>
-                           </div>
-                       ))}
-                       
-                       {products.filter(p => filterCategoryId ? p.categoryId === filterCategoryId : true).length === 0 && (
-                           <div className="text-center text-gray-500 py-10">{t.products.notFound}</div>
-                       )}
-                       
-                       <div className="text-center text-xs text-gray-400 py-4">
-                           {t.products.shown} {products.filter(p => filterCategoryId ? p.categoryId === filterCategoryId : true).length} {t.products.from} {products.length}
-                       </div>
-                   </div>
-               </div>
-           )}
+        {/* Product Modal */}
+        {showAddModal && (
+            <div className="absolute inset-0 z-50 bg-black/50 dark:bg-black/90 backdrop-blur-sm flex flex-col overflow-hidden">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-[#17212b]">
+                    <h3 className="text-gray-900 dark:text-white font-bold text-lg">{editingId ? 'Редактировать товар' : 'Новый товар'}</h3>
+                    <button onClick={() => setShowAddModal(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar" onPaste={handleProductPaste}>
+                    <form onSubmit={handleAddProductSubmit} className="space-y-4 pb-10">
+                        {/* Product Type Toggle */}
+                        <div className="flex gap-4 p-1 bg-gray-100 dark:bg-[#0e1621] rounded-lg">
+                            <button 
+                                type="button"
+                                onClick={() => setNewProduct({...newProduct, isBundle: false})}
+                                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${!newProduct.isBundle ? 'bg-white dark:bg-[#242d37] shadow text-blue-600' : 'text-gray-500'}`}
+                            >
+                                Обычный товар
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => setNewProduct({...newProduct, isBundle: true})}
+                                className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${newProduct.isBundle ? 'bg-white dark:bg-[#242d37] shadow text-purple-600' : 'text-gray-500'}`}
+                            >
+                                Комплект (Сет)
+                            </button>
+                        </div>
 
-           {activeSection === 'categories' && (
-               <div className="p-2 pb-20">
-                   <button onClick={handleNewCategoryClick} className="w-full mb-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow flex items-center justify-center">
-                       {t.actions.addCategory}
-                   </button>
-                   
-                   <div className="space-y-1">
-                       {renderCategoryTree(null)}
-                   </div>
-                   <div className="text-center text-xs text-gray-400 mt-4">
-                       {t.categories.dragHint}
-                   </div>
-               </div>
-           )}
-           
-           {activeSection === 'settings' && renderSettings()}
-           {activeSection === 'interface' && renderInterface()}
-           {activeSection === 'statistics' && renderStatistics()}
+                        <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Название *</label><input required value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white" /></div>
+                        
+                        {!newProduct.isBundle ? (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Цена *</label><input required type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white" /></div>
+                                <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Акция</label><input type="number" value={newProduct.specialPrice} onChange={e => setNewProduct({...newProduct, specialPrice: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white" /></div>
+                            </div>
+                        ) : (
+                            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-sm text-gray-600 dark:text-gray-300 mb-2">
+                                Цена и остаток комплекта рассчитываются автоматически на основе добавленных товаров.
+                            </div>
+                        )}
 
-       </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Артикул</label><input value={newProduct.sku} onChange={e => setNewProduct({...newProduct, sku: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white" /></div>
+                             {!newProduct.isBundle && (
+                                <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Количество</label><input type="number" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white" /></div>
+                             )}
+                        </div>
+                        
+                        {/* Split Category Selection */}
+                        <div className="bg-gray-50 dark:bg-[#242d37] p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-2 font-bold">Расположение товара</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="block text-gray-500 text-[10px] mb-1">Раздел (Родитель)</label>
+                                    <select 
+                                        value={formParentCategory} 
+                                        onChange={e => {
+                                            const val = e.target.value === 'root' ? 'root' : Number(e.target.value);
+                                            setFormParentCategory(val);
+                                            // If switching parent, reset subcategory selection to first child or parent itself
+                                            if (val === 'root') {
+                                                // Picking a root category that isn't actually a category object isn't possible here except 'root' string which means "Top Level" context
+                                                // Actually, if user selects 'root', it implies creating a root item, but products must belong to a category.
+                                                // If 'root' is selected, we might filter for top-level categories to pick from in the second box.
+                                                // Let's simplify:
+                                            } else {
+                                                // Auto-select the parent itself as default
+                                                setNewProduct({...newProduct, categoryId: val as number});
+                                            }
+                                        }} 
+                                        className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-gray-900 dark:text-white text-xs"
+                                    >
+                                        <option value="root">-- Все разделы --</option>
+                                        {categories.filter(c => !c.parentId).map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-gray-500 text-[10px] mb-1">Категория</label>
+                                    <select 
+                                        value={newProduct.categoryId} 
+                                        onChange={e => setNewProduct({...newProduct, categoryId: Number(e.target.value)})} 
+                                        className="w-full bg-white dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-gray-900 dark:text-white text-xs"
+                                    >
+                                        {formParentCategory === 'root' ? (
+                                            // Show all root categories if no parent selected (allow placing in root)
+                                            categories.filter(c => !c.parentId).map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                                        ) : (
+                                            <>
+                                                <option value={formParentCategory}>-- В корень раздела --</option>
+                                                {categories.filter(c => c.parentId === formParentCategory).map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </>
+                                        )}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Stickers Selection */}
+                        <div className="bg-gray-50 dark:bg-[#242d37] p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                             <label className="block text-gray-600 dark:text-gray-400 text-xs mb-2">Стикеры</label>
+                             <div className="flex flex-wrap gap-2">
+                                 {stickers.map(sticker => {
+                                     const isSelected = newProduct.stickerIds.includes(sticker.id);
+                                     return (
+                                         <button
+                                            key={sticker.id}
+                                            type="button"
+                                            onClick={() => toggleStickerSelection(sticker.id)}
+                                            className={`px-3 py-1 rounded-lg text-xs font-bold uppercase border transition-all ${
+                                                isSelected 
+                                                  ? 'border-transparent shadow-md scale-105' 
+                                                  : 'border-gray-300 dark:border-gray-600 opacity-50 grayscale hover:opacity-100 hover:grayscale-0'
+                                            }`}
+                                            style={{ 
+                                                backgroundColor: isSelected ? sticker.bgColor : 'transparent', 
+                                                color: isSelected ? sticker.textColor : 'inherit'
+                                            }}
+                                         >
+                                             {sticker.name}
+                                             {isSelected && <span className="ml-1">✓</span>}
+                                         </button>
+                                     );
+                                 })}
+                             </div>
+                        </div>
 
-       {/* Toast Notification */}
-       {toast && (
-           <div className={`absolute bottom-4 left-4 right-4 p-4 rounded-xl shadow-lg flex items-center justify-center text-sm font-bold animate-bounce z-50 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-               {toast.message}
-           </div>
-       )}
+                        <div><label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Описание</label><textarea rows={4} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-sm" placeholder="Подробное описание товара..." /></div>
 
-       {/* --- MODALS --- */}
-       
-       {/* Import Modal */}
-       {showImportModal && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-               <div className="bg-white dark:bg-[#17212b] rounded-2xl w-full max-w-md p-6 shadow-2xl">
-                   <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">{t.import.title}</h3>
-                   <div 
-                      onClick={() => importFileRef.current?.click()}
-                      className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#242d37]"
-                   >
-                       <p className="text-gray-500 mb-2">{t.products.dropText}</p>
-                       <input type="file" ref={importFileRef} onChange={handleImportFile} className="hidden" accept=".csv" />
-                   </div>
-                   {isImporting && <p className="text-center text-blue-500 mt-4 font-bold">{t.import.processing}</p>}
-                   <button onClick={() => setShowImportModal(false)} className="w-full mt-6 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-3 rounded-xl">{t.import.close}</button>
-               </div>
-           </div>
-       )}
+                        {/* Attributes */}
+                        <div>
+                            <div className="flex justify-between items-center mb-2"><label className="block text-gray-600 dark:text-gray-400 text-xs">Характеристики</label><button type="button" onClick={addAttribute} className="text-blue-500 text-xs hover:underline">+ Добавить</button></div>
+                            <div className="space-y-2">{newProduct.attributes.map((attr, index) => (<div key={index} className="flex gap-2"><input placeholder="Название" value={attr.name} onChange={(e) => handleAttributeChange(index, 'name', e.target.value)} className="flex-1 bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-xs" /><input placeholder="Значение" value={attr.text} onChange={(e) => handleAttributeChange(index, 'text', e.target.value)} className="flex-1 bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded p-2 text-gray-900 dark:text-white text-xs" /><button type="button" onClick={() => removeAttribute(index)} className="text-red-500 p-1 hover:bg-red-500/10 rounded"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button></div>))}</div>
+                        </div>
+                        
+                        {/* --- BUNDLE MANAGEMENT --- */}
+                        {newProduct.isBundle && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                                <label className="block text-gray-900 dark:text-white font-bold text-sm mb-2">Состав комплекта</label>
+                                <div className="bg-gray-50 dark:bg-[#242d37] rounded-lg p-3 mb-3">
+                                    {newProduct.bundleItems.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {newProduct.bundleItems.map(itemId => {
+                                                const p = products.find(prod => prod.id === itemId);
+                                                if (!p) return null;
+                                                return (
+                                                    <div key={itemId} className="flex items-center justify-between bg-white dark:bg-[#17212b] p-2 rounded border border-gray-200 dark:border-gray-600">
+                                                        <div className="flex items-center gap-2">
+                                                            <img src={p.image} className="w-8 h-8 rounded object-cover bg-gray-100" />
+                                                            <div>
+                                                                <div className="text-xs font-bold text-gray-800 dark:text-gray-200">{p.name}</div>
+                                                                <div className="text-[10px] text-gray-500">
+                                                                    {(p.specialPrice ?? p.price).toLocaleString()} ₽ | Ост: {p.stock}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" onClick={() => removeBundleItem(itemId)} className="text-red-500 p-1">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        </button>
+                                                    </div>
+                                                )
+                                            })}
+                                            <div className="text-right text-xs font-bold text-gray-900 dark:text-white pt-2">
+                                                Итого: {newProduct.bundleItems.reduce((acc, id) => {
+                                                    const p = products.find(prod => prod.id === id);
+                                                    return acc + (p ? (p.specialPrice ?? p.price) : 0);
+                                                }, 0).toLocaleString()} ₽
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-gray-400 text-center">Добавьте товары в комплект</p>
+                                    )}
+                                </div>
 
-       {/* Add/Edit Product Modal */}
-       {showAddModal && (
-           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4">
-               <div className="bg-white dark:bg-[#17212b] w-full h-[90vh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col">
-                   <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{editingId ? t.products.editModalTitle : t.products.newModalTitle}</h3>
-                       <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-                           <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                       </button>
-                   </div>
-                   <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                       <form onSubmit={handleAddProductSubmit} className="space-y-4">
-                           {/* Type Selector */}
-                           <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                               <button 
-                                  type="button"
-                                  onClick={() => setNewProduct(p => ({...p, isBundle: false}))}
-                                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${!newProduct.isBundle ? 'bg-white dark:bg-[#242d37] shadow text-blue-600' : 'text-gray-500'}`}
-                               >
-                                   {t.products.typeRegular}
-                               </button>
-                               <button 
-                                  type="button"
-                                  onClick={() => setNewProduct(p => ({...p, isBundle: true}))}
-                                  className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${newProduct.isBundle ? 'bg-white dark:bg-[#242d37] shadow text-purple-600' : 'text-gray-500'}`}
-                               >
-                                   {t.products.typeBundle}
-                               </button>
-                           </div>
+                                {/* Bundle Search */}
+                                <div className="relative">
+                                    <input 
+                                        placeholder="Найти товар для комплекта..."
+                                        value={productSearchQuery}
+                                        onChange={(e) => {
+                                            setProductSearchQuery(e.target.value);
+                                            setShowProductSearchResults(true);
+                                        }}
+                                        className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-xs"
+                                    />
+                                    {showProductSearchResults && productSearchQuery && (
+                                        <div className="absolute bottom-full mb-1 left-0 right-0 bg-white dark:bg-[#242d37] border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-40 overflow-y-auto z-10">
+                                            {searchProducts(true, false, true).map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    onClick={() => addBundleItem(p)}
+                                                    className="w-full text-left p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-100 dark:border-gray-700 last:border-0 text-gray-800 dark:text-gray-200"
+                                                >
+                                                    <div className="flex justify-between">
+                                                        <span className="font-bold">{p.name}</span>
+                                                        <span>{(p.specialPrice ?? p.price).toLocaleString()} ₽</span>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-                           <div>
-                               <label className="block text-xs text-gray-500 mb-1">{t.products.nameLabel}</label>
-                               <input required type="text" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white" />
-                           </div>
-                           
-                           <div className="grid grid-cols-2 gap-4">
-                               <div>
-                                   <label className="block text-xs text-gray-500 mb-1">{t.products.priceLabel}</label>
-                                   <input required type="number" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white" />
-                               </div>
-                               <div>
-                                   <label className="block text-xs text-gray-500 mb-1">{t.products.specialPriceLabel}</label>
-                                   <input type="number" value={newProduct.specialPrice} onChange={e => setNewProduct({...newProduct, specialPrice: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-red-500" />
-                               </div>
-                           </div>
+                        {/* Multi-Dimensional Variants Management (Hidden for Bundles to avoid complexity) */}
+                        {!newProduct.isBundle && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-gray-900 dark:text-white font-bold text-sm">Варианты товара</label>
+                                    <button type="button" onClick={addVariantLabel} disabled={newProduct.variantLabels.length >= 2} className="text-xs text-blue-500 hover:underline disabled:opacity-50">+ Параметр (макс 2)</button>
+                                </div>
+                                
+                                {/* Labels Configuration */}
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    {newProduct.variantLabels.map((label, idx) => (
+                                        <div key={idx} className="relative">
+                                            <label className="block text-[10px] text-gray-500 mb-1">Параметр {idx+1} (напр: Цвет)</label>
+                                            <div className="flex">
+                                                <input 
+                                                    value={label}
+                                                    onChange={(e) => updateVariantLabel(idx, e.target.value)}
+                                                    className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-l-lg p-2 text-gray-900 dark:text-white text-xs"
+                                                />
+                                                {idx > 0 && (
+                                                    <button type="button" onClick={() => removeVariantLabel(idx)} className="px-2 bg-red-100 text-red-500 rounded-r-lg border-y border-r border-gray-300">X</button>
+                                                )}
+                                            </div>
+                                            {/* Current Value for This Dimension */}
+                                            <div className="mt-1">
+                                                 <input 
+                                                    placeholder={`Мой ${label}`}
+                                                    value={newProduct.variantValues[idx] || ''}
+                                                    onChange={(e) => updateOwnVariantValue(idx, e.target.value)}
+                                                    className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2 text-gray-900 dark:text-white text-xs font-medium"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
 
-                           {/* ... [Skipping standard fields to focus on Image Input Update] ... */}
-                           
-                           <div className="grid grid-cols-2 gap-4">
-                               <div>
-                                   <label className="block text-xs text-gray-500 mb-1">{t.products.skuLabel}</label>
-                                   <input type="text" value={newProduct.sku} onChange={e => setNewProduct({...newProduct, sku: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white" />
-                               </div>
-                               <div>
-                                   <label className="block text-xs text-gray-500 mb-1">{t.products.stockLabel}</label>
-                                   <input type="number" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} disabled={newProduct.isBundle} className={`w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white ${newProduct.isBundle ? 'opacity-50' : ''}`} />
-                               </div>
-                           </div>
+                                <div className="bg-gray-50 dark:bg-[#242d37] rounded-lg p-3 mb-3">
+                                    <h4 className="text-xs text-gray-500 mb-2">Связанные товары:</h4>
+                                    {newProduct.variants.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {newProduct.variants.map(v => {
+                                                const p = products.find(prod => prod.id === v.productId);
+                                                const name = p ? p.name : (v.productId === editingId ? '(Этот товар)' : 'Unknown');
+                                                const isSelf = v.productId === editingId;
+                                                
+                                                return (
+                                                    <div key={v.productId} className={`flex flex-col gap-1 bg-white dark:bg-[#17212b] p-2 rounded border ${isSelf ? 'border-blue-400' : 'border-gray-200 dark:border-gray-600'}`}>
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate w-48">
+                                                                {isSelf && <span className="font-bold text-blue-500 mr-1">[SELF]</span>}
+                                                                {name}
+                                                            </div>
+                                                            <button type="button" onClick={() => removeVariant(v.productId)} className="text-red-500 p-1">
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            </button>
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            {newProduct.variantLabels.map((lbl, dimIdx) => (
+                                                                 <input 
+                                                                    key={dimIdx}
+                                                                    placeholder={lbl}
+                                                                    value={v.values[dimIdx] || ''}
+                                                                    onChange={(e) => updateVariantValue(v.productId, dimIdx, e.target.value)}
+                                                                    disabled={isSelf} // Self values are edited in the header block above
+                                                                    className={`flex-1 bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white ${isSelf ? 'opacity-50' : ''}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-gray-400 text-center">Нет вариантов</p>
+                                    )}
+                                </div>
+                                
+                                {editingId && !newProduct.variants.find(v => v.productId === editingId) && (
+                                    <button 
+                                        type="button" 
+                                        onClick={addSelfToVariants}
+                                        className="w-full mb-2 border border-dashed border-blue-300 text-blue-500 py-1 rounded text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                    >
+                                        + Добавить этот товар в список
+                                    </button>
+                                )}
 
-                           {/* Category Split Selector (Same as before) */}
-                           <div className="space-y-2">
-                               <label className="block text-xs text-gray-500 font-bold">{t.products.locationLabel}</label>
-                               <div className="grid grid-cols-2 gap-2">
-                                   <div>
-                                       <label className="block text-[10px] text-gray-400 mb-1">{t.products.sectionLabel}</label>
-                                       <select 
-                                           value={formParentCategory} 
-                                           onChange={(e) => {
-                                               const val = e.target.value === 'root' ? 'root' : parseInt(e.target.value);
-                                               setFormParentCategory(val);
-                                               const firstChild = categories.find(c => c.parentId === (val === 'root' ? null : val));
-                                               if (firstChild) {
-                                                   setNewProduct({...newProduct, categoryId: firstChild.id});
-                                               } else if (val !== 'root') {
-                                                   setNewProduct({...newProduct, categoryId: val});
-                                               }
-                                           }}
-                                           className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-sm"
-                                       >
-                                           <option value="root">{t.products.allSections}</option>
-                                           {categories.filter(c => !c.parentId).map(c => (
-                                               <option key={c.id} value={c.id}>{c.name}</option>
-                                           ))}
-                                       </select>
-                                   </div>
-                                   <div>
-                                       <label className="block text-[10px] text-gray-400 mb-1">{t.products.categoryLabel}</label>
-                                       <select 
-                                            required 
-                                            value={newProduct.categoryId} 
-                                            onChange={e => setNewProduct({...newProduct, categoryId: parseInt(e.target.value)})} 
-                                            className="w-full p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-sm"
-                                       >
-                                            {formParentCategory === 'root' ? (
-                                                 <>
-                                                    <option value="" disabled>{t.common.select}</option>
-                                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                                 </>
-                                            ) : (
-                                                <>
-                                                    <option value={formParentCategory}>{t.products.rootSection}</option>
-                                                    {categories.filter(c => c.parentId === formParentCategory).map(c => (
-                                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                                    ))}
-                                                </>
+                                <div className="relative">
+                                    <div className="flex gap-2">
+                                        <input 
+                                            placeholder="Найти товар для добавления..."
+                                            value={productSearchQuery}
+                                            onChange={(e) => {
+                                                setProductSearchQuery(e.target.value);
+                                                setShowProductSearchResults(true);
+                                            }}
+                                            className="flex-1 bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-700 rounded-lg p-2 text-gray-900 dark:text-white text-xs"
+                                        />
+                                    </div>
+                                    {showProductSearchResults && productSearchQuery && (
+                                        <div className="absolute bottom-full mb-1 left-0 right-0 bg-white dark:bg-[#242d37] border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-40 overflow-y-auto z-10">
+                                            {searchProducts().map(p => (
+                                                <button
+                                                    key={p.id}
+                                                    type="button"
+                                                    onClick={() => addVariant(p)}
+                                                    className="w-full text-left p-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs border-b border-gray-100 dark:border-gray-700 last:border-0 text-gray-800 dark:text-gray-200"
+                                                >
+                                                    <div className="font-bold">{p.name}</div>
+                                                    <div className="text-gray-500">{p.sku}</div>
+                                                </button>
+                                            ))}
+                                            {searchProducts().length === 0 && (
+                                                <div className="p-2 text-xs text-gray-400 text-center">Не найдено</div>
                                             )}
-                                       </select>
-                                   </div>
-                               </div>
-                           </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-                           <div>
-                               <label className="block text-xs text-gray-500 mb-1">{t.products.stickersLabel}</label>
-                               <div className="flex flex-wrap gap-2">
-                                   {stickers.map(sticker => {
-                                       const isSelected = newProduct.stickerIds.includes(sticker.id);
-                                       return (
-                                           <button
-                                               key={sticker.id}
-                                               type="button"
-                                               onClick={() => toggleStickerSelection(sticker.id)}
-                                               className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${isSelected ? 'border-transparent' : 'border-gray-300 dark:border-gray-600 opacity-50'}`}
-                                               style={isSelected ? { backgroundColor: sticker.bgColor, color: sticker.textColor } : { color: 'gray' }}
-                                           >
-                                               {sticker.name}
-                                           </button>
-                                       )
-                                   })}
-                               </div>
-                           </div>
+                        <div>
+                            <label className="block text-gray-600 dark:text-gray-400 text-xs mb-1">Фото (Drop/Paste)</label>
+                            <div onDrop={handleProductDrop} onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}} onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-400 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-500 transition-colors mb-2 bg-gray-50 dark:bg-[#17212b] cursor-pointer">
+                                {newProduct.mainImage ? <img src={newProduct.mainImage} alt="Preview" className="h-32 mx-auto object-contain rounded" /> : <span className="text-gray-500 text-xs">Перетащите файл сюда</span>}
+                                <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewProduct(p => ({...p, mainImage: res})))} className="hidden" accept="image/*" />
+                            </div>
+                        </div>
+                        <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg">
+                            {editingId ? 'Сохранить' : 'Создать'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        )}
 
-                           <div>
-                               <label className="block text-xs text-gray-500 mb-1">{t.products.descriptionLabel}</label>
-                               <textarea rows={4} value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white" />
-                           </div>
+        {/* --- HEADER --- */}
+        <div className="p-4 bg-white dark:bg-[#17212b] border-b border-gray-200 dark:border-gray-700 flex flex-col gap-3 shadow-md z-10 transition-colors">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin</h2>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button onClick={onExit} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow transition-colors flex items-center">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                        В магазин
+                    </button>
+                    <div className="flex items-center gap-1 border-l border-gray-300 dark:border-gray-600 pl-3">
+                         <button onClick={onDeleteAll} className="text-red-500 hover:text-red-400 p-2" title="Удалить ВСЕ товары"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        <button onClick={onResetDB} className="text-yellow-500 hover:text-yellow-400 p-2" title="Сбросить базу (Демо)"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
+                    </div>
+                    <button onClick={onLogout} className="text-red-500 dark:text-red-400 text-xs hover:text-red-400 dark:hover:text-red-300 ml-1">Выход</button>
+                </div>
+            </div>
+            <div className="flex bg-gray-100 dark:bg-[#0e1621] p-1 rounded-lg overflow-x-auto">
+                <button onClick={() => setActiveSection('products')} className={`flex-1 py-2 px-3 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeSection === 'products' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>Товары</button>
+                <button onClick={() => setActiveSection('categories')} className={`flex-1 py-2 px-3 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeSection === 'categories' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>Категории</button>
+                <button onClick={() => setActiveSection('settings')} className={`flex-1 py-2 px-3 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeSection === 'settings' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>Настройки</button>
+                <button onClick={() => setActiveSection('interface')} className={`flex-1 py-2 px-3 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeSection === 'interface' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>Интерфейс</button>
+                <button onClick={() => setActiveSection('statistics')} className={`flex-1 py-2 px-3 rounded-md text-sm font-bold transition-all whitespace-nowrap ${activeSection === 'statistics' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>Статистика</button>
+            </div>
 
-                           {/* Images - Updated for Static Path */}
-                           <div>
-                               <label className="block text-xs text-gray-500 mb-1">{t.products.photosLabel}</label>
-                               
-                               {/* URL Input for Server Paths */}
-                               <input 
-                                  type="text" 
-                                  value={newProduct.mainImage} 
-                                  onChange={e => setNewProduct({...newProduct, mainImage: e.target.value})} 
-                                  placeholder="/images/my-product.jpg (Server Path)" 
-                                  className="w-full p-3 mb-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-sm font-mono" 
-                               />
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+                {activeSection === 'products' && (
+                    <>
+                        <button onClick={handleNewProductClick} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-sm font-bold flex items-center justify-center transition-colors">+ Товар</button>
+                        <button onClick={() => setShowImportModal(true)} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 rounded-lg text-gray-800 dark:text-white transition-colors" title="Импорт CSV"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg></button>
+                         <button onClick={handleExport} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 px-3 rounded-lg text-gray-800 dark:text-white transition-colors" title="Экспорт CSV"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></button>
+                    </>
+                )}
+                
+                {activeSection === 'categories' && (
+                    <button onClick={handleNewCategoryClick} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-sm font-bold flex items-center justify-center transition-colors">+ Категория</button>
+                )}
+            </div>
 
-                               <div 
-                                  onDrop={handleProductDrop} 
-                                  onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}}
-                                  onClick={() => fileInputRef.current?.click()}
-                                  onPaste={handleProductPaste}
-                                  className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#242d37] mb-2"
-                               >
-                                   {newProduct.mainImage && newProduct.mainImage.startsWith('data:') ? (
-                                       <img src={newProduct.mainImage} alt="Preview" className="h-32 mx-auto object-contain rounded" />
-                                   ) : (
-                                       <span className="text-gray-400 text-xs">{t.products.dropText} (или вставьте URL выше)</span>
-                                   )}
-                                   <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewProduct({...newProduct, mainImage: res}))} className="hidden" accept="image/*" />
-                               </div>
-                               <input 
-                                  type="text" 
-                                  value={newProduct.additionalImages} 
-                                  onChange={e => setNewProduct({...newProduct, additionalImages: e.target.value})} 
-                                  placeholder={t.products.urlPlaceholder} 
-                                  className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-xs" 
-                               />
-                           </div>
-                           
-                           {/* ... [Attributes, Bundles, Variants logic remains same, just ensuring HTML structure closes] ... */}
-                           
-                           {/* Attributes */}
-                           <div>
-                               <div className="flex justify-between items-center mb-2">
-                                   <label className="block text-xs text-gray-500">{t.products.characteristicsLabel}</label>
-                                   <button type="button" onClick={addAttribute} className="text-blue-500 text-xs font-bold">{t.products.addCharacteristic}</button>
-                               </div>
-                               <div className="space-y-2">
-                                   {newProduct.attributes.map((attr, idx) => (
-                                       <div key={idx} className="flex gap-2">
-                                           <input type="text" placeholder={t.products.attributeNamePlaceholder} value={attr.name} onChange={e => handleAttributeChange(idx, 'name', e.target.value)} className="flex-1 p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-xs" />
-                                           <input type="text" placeholder={t.products.attributeValuePlaceholder} value={attr.text} onChange={e => handleAttributeChange(idx, 'text', e.target.value)} className="flex-1 p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white text-xs" />
-                                           <button type="button" onClick={() => removeAttribute(idx)} className="text-red-500 p-2 hover:bg-red-50 rounded">
-                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                           </button>
-                                       </div>
-                                   ))}
-                               </div>
-                           </div>
+            {/* Filter Row */}
+            {activeSection === 'products' && (
+                <div className="relative">
+                    <select value={filterCategoryId || ''} onChange={(e) => setFilterCategoryId(e.target.value ? Number(e.target.value) : null)} className="w-full bg-gray-100 dark:bg-[#0e1621] border border-gray-300 dark:border-gray-600 rounded-lg py-2 px-3 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500 appearance-none">
+                        <option value="">Все категории ({products.length})</option>
+                        {categories.map(cat => {
+                            const count = products.filter(p => p.categoryId === cat.id).length;
+                            return <option key={cat.id} value={cat.id}>{cat.name} ({count})</option>;
+                        })}
+                    </select>
+                    <div className="absolute right-3 top-2.5 pointer-events-none text-gray-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></div>
+                </div>
+            )}
+        </div>
 
-                       </form>
-                   </div>
-                   <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#17212b] sm:rounded-b-2xl">
-                       <button onClick={handleAddProductSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all">
-                           {t.actions.save}
-                       </button>
-                   </div>
-               </div>
-           </div>
-       )}
+        {/* --- CONTENT LIST --- */}
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div className="pb-20">
+                {activeSection === 'products' && (
+                    <div className="space-y-3">
+                        <div className="text-xs text-gray-500 text-right mb-1">Показано: {filteredAdminProducts.length} из {products.length}</div>
+                        {filteredAdminProducts.length > 0 ? (
+                            filteredAdminProducts.map(p => (
+                                <div key={p.id} className={`bg-white dark:bg-[#242d37] rounded-xl p-3 flex items-center border ${p.status ? 'border-gray-200 dark:border-gray-700' : 'border-red-200 dark:border-red-900/50 opacity-60'}`}>
+                                    <div className="w-14 h-14 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 relative">
+                                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                                        {p.stickerIds && p.stickerIds.length > 0 && (
+                                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500"></div>
+                                        )}
+                                    </div>
+                                    <div className="ml-3 flex-1 min-w-0">
+                                        <div className="flex justify-between">
+                                            <h4 className="text-gray-900 dark:text-white font-medium text-sm truncate">
+                                                {p.isBundle && <span className="text-purple-600 mr-1 text-xs font-bold">[СЕТ]</span>}
+                                                {p.name}
+                                            </h4>
+                                            <div className="flex space-x-1">
+                                                <button onClick={() => handleEditProductClick(p)} className="text-blue-500 p-1 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                                <button onClick={() => handleProductDelete(p.id)} className="text-red-500 p-1 hover:bg-red-50 dark:hover:bg-red-500/10 rounded"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between mt-1">
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-gray-500">{p.stock} шт. | Арт: {p.sku}</span>
+                                                {p.stickerIds && p.stickerIds.length > 0 && (
+                                                    <div className="flex gap-1 mt-1">
+                                                        {p.stickerIds.slice(0,3).map(sid => {
+                                                            const s = stickers.find(st => st.id === sid);
+                                                            return s ? <span key={sid} className="w-2 h-2 rounded-full" style={{backgroundColor: s.bgColor}}></span> : null;
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <button onClick={() => toggleProductStatus(p)} className={`text-[10px] px-2 rounded h-fit ${p.status ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{p.status ? 'ON' : 'OFF'}</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-center text-gray-500 py-10"><p>Товары не найдены</p></div>
+                        )}
+                    </div>
+                )}
+                
+                {activeSection === 'categories' && (
+                    <div className="space-y-1">
+                        <p className="text-xs text-gray-500 mb-2 text-center">Перетащите категорию, чтобы изменить порядок</p>
+                        {renderCategoryTree(null)}
+                    </div>
+                )}
+                
+                {activeSection === 'settings' && renderSettings()}
+                
+                {activeSection === 'interface' && renderInterface()}
 
-       {/* Add/Edit Category Modal */}
-       {showAddCategoryModal && (
-           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-               <div className="bg-white dark:bg-[#17212b] rounded-2xl w-full max-w-md p-6 shadow-2xl">
-                   <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">{editingId ? t.categories.editModalTitle : t.categories.newModalTitle}</h3>
-                   <form onSubmit={handleCategorySubmit} className="space-y-4">
-                       <div>
-                           <label className="block text-xs text-gray-500 mb-1">{t.categories.nameLabel}</label>
-                           <input required type="text" value={newCategory.name} onChange={e => setNewCategory({...newCategory, name: e.target.value})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white" />
-                       </div>
-                       <div>
-                           <label className="block text-xs text-gray-500 mb-1">{t.categories.parentLabel}</label>
-                           <select 
-                              value={newCategory.parentId} 
-                              onChange={e => setNewCategory({...newCategory, parentId: e.target.value})} 
-                              className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white"
-                           >
-                               <option value="">{t.categories.rootOption}</option>
-                               {categories.filter(c => c.id !== editingId).map(c => (
-                                   <option key={c.id} value={c.id}>{c.name}</option>
-                               ))}
-                           </select>
-                       </div>
-                       <div>
-                           <label className="block text-xs text-gray-500 mb-1">{t.categories.sortOrderLabel}</label>
-                           <input type="number" value={newCategory.sortOrder} onChange={e => setNewCategory({...newCategory, sortOrder: parseInt(e.target.value)})} className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-[#0e1621] text-gray-900 dark:text-white" />
-                       </div>
-                       
-                       <div>
-                           <label className="block text-xs text-gray-500 mb-1">{t.categories.imageLabel}</label>
-                           <div 
-                              onDrop={handleCategoryDrop} 
-                              onDragOver={(e) => {e.preventDefault(); e.stopPropagation();}}
-                              onClick={() => catFileInputRef.current?.click()}
-                              onPaste={handleCategoryPaste}
-                              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#242d37] mb-2 relative"
-                           >
-                               {newCategory.image ? (
-                                   <img src={newCategory.image} alt="Preview" className="h-20 mx-auto object-contain rounded" />
-                               ) : (
-                                   <span className="text-gray-400 text-xs">{t.categories.dropText}</span>
-                               )}
-                               <input type="file" ref={catFileInputRef} onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0], (res) => setNewCategory({...newCategory, image: res}))} className="hidden" accept="image/*" />
-                           </div>
-                       </div>
-
-                       <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={newCategory.showImage} onChange={e => setNewCategory({...newCategory, showImage: e.target.checked})} className="rounded" />
-                                <span className="text-sm text-gray-900 dark:text-white">{t.categories.showImage}</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={newCategory.status} onChange={e => setNewCategory({...newCategory, status: e.target.checked})} className="rounded" />
-                                <span className="text-sm text-gray-900 dark:text-white">{t.categories.activeStatus}</span>
-                            </label>
-                       </div>
-
-                       <div className="flex gap-3 pt-2">
-                           <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition-all">
-                               {t.actions.save}
-                           </button>
-                           <button type="button" onClick={() => setShowAddCategoryModal(false)} className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl transition-all">
-                               {t.actions.cancel}
-                           </button>
-                       </div>
-                   </form>
-               </div>
-           </div>
-       )}
-
+                {activeSection === 'statistics' && renderStatistics()}
+            </div>
+        </div>
     </div>
   );
 };
